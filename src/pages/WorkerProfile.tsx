@@ -1,244 +1,188 @@
 
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import PageContainer from '@/components/PageContainer';
-import { Star, Phone, MapPin, Calendar, Clock, Award, User, Share2 } from 'lucide-react';
+import React from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Star, Phone, Calendar, Clock, MapPin, MessageSquare, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PageContainer from '@/components/PageContainer';
 
-// Mock worker data
+// Sample worker data
 const workerData = {
-  'p1': {
-    id: 'p1',
-    name: 'John Smith',
-    service: 'Plumbing',
-    experience: '8 years',
-    rating: 4.8,
-    reviews: 124,
-    price: '₹500-1000/hr',
-    distance: '2.3 km',
-    image: '/placeholder.svg',
-    about: 'Professional plumber with expertise in fixing leaks, installations, and maintenance of water systems. Licensed and insured with a focus on quality workmanship.',
-    phone: '+91 9876543210',
-    availability: 'Mon-Sat, 8AM-7PM',
-    languages: ['English', 'Hindi'],
-    servicesOffered: [
-      'Leak Repairs', 
-      'Pipe Installation', 
-      'Drain Cleaning', 
-      'Fixture Installation', 
-      'Water Heater Repair'
-    ],
-    reviews: [
-      { id: 1, user: 'Rahul M.', rating: 5, date: '2 weeks ago', comment: 'John fixed our leaky faucet quickly and efficiently. Highly recommend!' },
-      { id: 2, user: 'Anita S.', rating: 4, date: '1 month ago', comment: 'Fixed our bathroom sink. Good service but arrived a little late.' },
-      { id: 3, user: 'Vikram J.', rating: 5, date: '2 months ago', comment: 'Very knowledgeable and professional. Explained everything clearly.' },
-    ]
-  },
-  'e1': {
-    id: 'e1',
-    name: 'David Lee',
-    service: 'Electrical',
-    experience: '7 years',
-    rating: 4.7,
-    reviews: 92,
-    price: '₹500-900/hr',
-    distance: '1.5 km',
-    image: '/placeholder.svg',
-    about: 'Certified electrician specializing in residential electrical repairs, installations, and troubleshooting. Safety-focused with attention to detail.',
-    phone: '+91 8765432109',
-    availability: 'Mon-Fri, 9AM-6PM',
-    languages: ['English', 'Tamil'],
-    servicesOffered: [
-      'Wiring Installation', 
-      'Electrical Repairs', 
-      'Light Fixture Installation', 
-      'Circuit Breaker Repair', 
-      'Fan Installation'
-    ],
-    reviews: [
-      { id: 1, user: 'Priya K.', rating: 5, date: '3 weeks ago', comment: 'David installed new lighting in our kitchen. Very neat work!' },
-      { id: 2, user: 'Rajesh T.', rating: 4, date: '2 months ago', comment: 'Fixed our electrical issues efficiently. Fair pricing.' },
-    ]
-  },
-  'c1': {
-    id: 'c1',
-    name: 'Maria Garcia',
-    service: 'Cleaning',
-    experience: '6 years',
-    rating: 4.9,
-    reviews: 87,
-    price: '₹300-600/hr',
-    distance: '2.8 km',
-    image: '/placeholder.svg',
-    about: 'Professional house cleaner with expertise in deep cleaning, regular maintenance, and organizing. Uses eco-friendly products upon request.',
-    phone: '+91 7654321098',
-    availability: 'Mon-Sun, 7AM-8PM',
-    languages: ['English', 'Hindi', 'Spanish'],
-    servicesOffered: [
-      'Deep Cleaning', 
-      'Regular Maintenance', 
-      'Move-in/Move-out Cleaning', 
-      'Office Cleaning', 
-      'Post-Construction Cleaning'
-    ],
-    reviews: [
-      { id: 1, user: 'Neha G.', rating: 5, date: '1 week ago', comment: 'Maria is thorough and detail-oriented. Our house has never been cleaner!' },
-      { id: 2, user: 'Samir P.', rating: 5, date: '1 month ago', comment: 'Excellent service. Very reliable and professional.' },
-    ]
-  }
+  id: "1",
+  name: "John Smith",
+  profession: "Professional Plumber",
+  rating: 4.8,
+  reviews: 124,
+  hourlyRate: "$45",
+  location: "San Francisco, CA",
+  distance: "2.5 miles away",
+  availability: "Available today",
+  bio: "Experienced plumber with over 10 years in residential and commercial plumbing. Specializing in repairs, installations, and maintenance.",
+  skills: ["Pipe Fitting", "Leak Repair", "Drain Cleaning", "Water Heater Installation"],
+  image: "/placeholder.svg",
+  phone: "+1 (555) 123-4567",
 };
 
+// Sample reviews data
+const reviewsData = [
+  {
+    id: 1,
+    user: "Sarah Johnson",
+    rating: 5,
+    date: "June 15, 2023",
+    comment: "John did an amazing job fixing our kitchen sink. He was prompt, professional, and even cleaned up afterwards. Highly recommend!"
+  },
+  {
+    id: 2,
+    user: "Mike Peterson",
+    rating: 4,
+    date: "May 22, 2023",
+    comment: "Fixed my leaky faucet quickly. Good service at a fair price."
+  },
+  {
+    id: 3,
+    user: "Emma Wilson",
+    rating: 5,
+    date: "April 10, 2023",
+    comment: "Very knowledgeable and professional. Solved a complex plumbing issue that two other plumbers couldn't figure out."
+  }
+];
+
 const WorkerProfile = () => {
-  const { workerId = 'p1' } = useParams<{ workerId: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('about');
+  const { workerId } = useParams();
   
-  // Get worker data or use a default if not found
-  const worker = workerData[workerId as keyof typeof workerData] || workerData.p1;
+  // In a real app, we would fetch the worker data based on the workerId
   
   return (
-    <PageContainer showBack transparent>
-      {/* Header Section with Profile */}
-      <div className="bg-brand-blue text-white pt-4 pb-6 px-4 rounded-b-3xl">
-        <div className="flex items-center">
-          <div className="w-20 h-20 bg-white rounded-full overflow-hidden mr-4 border-2 border-white">
-            <img 
-              src={worker.image} 
-              alt={worker.name}
-              className="w-full h-full object-cover" 
-            />
+    <PageContainer transparent showHeader={false}>
+      {/* Header with back button and profile image */}
+      <div className="relative">
+        <div className="absolute top-0 left-0 right-0 z-10 pt-safe-top">
+          <div className="p-4">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="bg-white/70 backdrop-blur-sm rounded-full"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft />
+            </Button>
           </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-semibold">{worker.name}</h2>
-            <p className="opacity-90">{worker.service} Expert</p>
-            <div className="flex items-center mt-1">
-              <Star size={14} className="fill-yellow-400 text-yellow-400" />
-              <span className="ml-1 font-medium">{worker.rating}</span>
-              <span className="ml-1 opacity-80">({worker.reviews} reviews)</span>
-            </div>
-          </div>
-          <Button 
-            variant="secondary" 
-            size="icon"
-            className="bg-white/20 hover:bg-white/30 text-white"
-            onClick={() => alert('Shared profile!')}
-          >
-            <Share2 size={18} />
-          </Button>
         </div>
         
-        <div className="flex mt-6 gap-2">
-          <Button className="flex-1 bg-brand-orange hover:bg-brand-orange/90">
-            <Phone size={18} className="mr-2" />
-            Call Now
-          </Button>
-          <Button variant="secondary" className="flex-1 bg-white/20 hover:bg-white/30 text-white">
-            <Calendar size={18} className="mr-2" />
-            Save Contact
-          </Button>
+        <div className="h-48 bg-brand-blue" />
+        
+        <div className="absolute bottom-0 left-0 w-full transform translate-y-1/2 flex justify-center">
+          <Avatar className="w-24 h-24 border-4 border-white">
+            <AvatarImage src={workerData.image} alt={workerData.name} />
+            <AvatarFallback>{workerData.name.substring(0, 2)}</AvatarFallback>
+          </Avatar>
         </div>
       </div>
       
-      {/* Tabs Navigation */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-        <TabsList className="grid grid-cols-3 mb-2 mx-4">
-          <TabsTrigger value="about">About</TabsTrigger>
-          <TabsTrigger value="services">Services</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="about" className="px-4 animate-fade-in">
-          <div className="bg-white rounded-xl p-4 mb-4 border border-gray-100 card-shadow">
-            <h3 className="font-medium mb-2">About</h3>
-            <p className="text-sm text-gray-600">{worker.about}</p>
-            
-            <div className="mt-4 space-y-3">
-              <div className="flex">
-                <MapPin size={18} className="text-brand-blue mr-3" />
-                <div className="text-sm">{worker.distance} away</div>
-              </div>
-              <div className="flex">
-                <Clock size={18} className="text-brand-blue mr-3" />
-                <div className="text-sm">{worker.availability}</div>
-              </div>
-              <div className="flex">
-                <Award size={18} className="text-brand-blue mr-3" />
-                <div className="text-sm">{worker.experience} experience</div>
-              </div>
-              <div className="flex">
-                <User size={18} className="text-brand-blue mr-3" />
-                <div className="text-sm">Languages: {worker.languages?.join(', ')}</div>
-              </div>
-            </div>
+      {/* Profile content */}
+      <div className="pt-16 px-4">
+        {/* Worker info */}
+        <div className="text-center mb-6">
+          <h1 className="text-xl font-bold">{workerData.name}</h1>
+          <p className="text-gray-500">{workerData.profession}</p>
+          <div className="flex items-center justify-center mt-1">
+            <Star className="text-yellow-500 fill-yellow-500 mr-1" size={16} />
+            <span className="font-medium">{workerData.rating}</span>
+            <span className="text-gray-500 text-sm ml-1">({workerData.reviews} reviews)</span>
           </div>
+          <div className="flex items-center justify-center mt-2">
+            <Badge variant="outline" className="mr-2 bg-blue-50">{workerData.hourlyRate}/hr</Badge>
+            <Badge variant="outline" className="bg-green-50">{workerData.availability}</Badge>
+          </div>
+        </div>
+        
+        {/* Contact button */}
+        <div className="flex gap-2 mb-6">
+          <Button className="flex-1 gap-2">
+            <Phone size={16} /> Call Now
+          </Button>
+          <Button variant="outline" className="flex-1 gap-2">
+            <MessageSquare size={16} /> Message
+          </Button>
+        </div>
+        
+        {/* Location info */}
+        <div className="flex items-center mb-6">
+          <MapPin className="text-gray-400 mr-2" size={18} />
+          <div>
+            <p className="text-sm">{workerData.location}</p>
+            <p className="text-xs text-gray-500">{workerData.distance}</p>
+          </div>
+        </div>
+        
+        {/* Tabs for Bio, Reviews, etc. */}
+        <Tabs defaultValue="about" className="mb-8">
+          <TabsList className="grid grid-cols-3 mb-4">
+            <TabsTrigger value="about">About</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+            <TabsTrigger value="availability">Availability</TabsTrigger>
+          </TabsList>
           
-          <div className="bg-white rounded-xl p-4 border border-gray-100 card-shadow">
-            <h3 className="font-medium mb-2">Contact Information</h3>
-            <Button className="w-full bg-brand-orange hover:bg-brand-orange/90">
-              <Phone size={16} className="mr-2" />
-              {worker.phone}
-            </Button>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="services" className="px-4 animate-fade-in">
-          <div className="bg-white rounded-xl p-4 border border-gray-100 card-shadow">
-            <h3 className="font-medium mb-3">Services Offered</h3>
-            <div className="space-y-2">
-              {worker.servicesOffered?.map((service, index) => (
-                <div key={index} className="flex items-center py-2 border-b border-gray-100 last:border-0">
-                  <div className="w-2 h-2 bg-brand-blue rounded-full mr-3"></div>
-                  <span>{service}</span>
-                </div>
-              ))}
+          <TabsContent value="about" className="space-y-4">
+            <div>
+              <h3 className="font-medium mb-2">Bio</h3>
+              <p className="text-sm text-gray-600">{workerData.bio}</p>
             </div>
             
-            <div className="mt-4 bg-gray-50 p-3 rounded-lg">
-              <h4 className="font-medium text-sm mb-1">Pricing</h4>
-              <p className="text-sm text-gray-600">Starting at {worker.price}</p>
-              <p className="text-xs text-gray-500 mt-1">
-                *Final price may vary based on job complexity and materials required
-              </p>
-            </div>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="reviews" className="px-4 animate-fade-in">
-          <div className="bg-white rounded-xl p-4 border border-gray-100 card-shadow mb-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">Ratings & Reviews</h3>
-              <div className="flex items-center">
-                <Star size={16} className="fill-yellow-400 text-yellow-400 mr-1" />
-                <span className="font-medium">{worker.rating}</span>
+            <div>
+              <h3 className="font-medium mb-2">Skills</h3>
+              <div className="flex flex-wrap gap-2">
+                {workerData.skills.map((skill, index) => (
+                  <Badge key={index} variant="outline" className="bg-gray-50">{skill}</Badge>
+                ))}
               </div>
             </div>
-          </div>
+          </TabsContent>
           
-          <div className="space-y-4">
-            {worker.reviews?.map((review) => (
-              <div key={review.id} className="bg-white rounded-xl p-4 border border-gray-100 card-shadow">
-                <div className="flex justify-between mb-2">
-                  <h4 className="font-medium">{review.user}</h4>
-                  <span className="text-xs text-gray-500">{review.date}</span>
+          <TabsContent value="reviews" className="space-y-4">
+            {reviewsData.map(review => (
+              <div key={review.id} className="border rounded-lg p-3">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="font-medium">{review.user}</div>
+                  <div className="text-xs text-gray-500">{review.date}</div>
                 </div>
-                
                 <div className="flex items-center mb-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
+                  {[...Array(5)].map((_, i) => (
                     <Star 
                       key={i} 
                       size={14} 
-                      className={i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"} 
+                      className={i < review.rating ? "text-yellow-500 fill-yellow-500" : "text-gray-300"} 
                     />
                   ))}
                 </div>
-                
                 <p className="text-sm text-gray-600">{review.comment}</p>
               </div>
             ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+          
+          <TabsContent value="availability" className="space-y-4">
+            <div className="flex items-center mb-4">
+              <Calendar className="text-brand-blue mr-2" size={18} />
+              <div>
+                <p className="font-medium">Available Days</p>
+                <p className="text-sm text-gray-500">Monday - Saturday</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center">
+              <Clock className="text-brand-blue mr-2" size={18} />
+              <div>
+                <p className="font-medium">Working Hours</p>
+                <p className="text-sm text-gray-500">9:00 AM - 6:00 PM</p>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </PageContainer>
   );
 };

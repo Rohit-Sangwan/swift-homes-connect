@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, ArrowRight } from 'lucide-react';
+import { Search, MapPin, ArrowRight, Star } from 'lucide-react';
 import PageContainer from '@/components/PageContainer';
 import { Button } from '@/components/ui/button';
 
