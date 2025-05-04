@@ -1,15 +1,49 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { User, Settings, Star, Clock, LogOut, ChevronRight, Bell, Phone } from 'lucide-react';
+import { User, Settings, Star, Clock, LogOut, ChevronRight, Bell, Phone, Shield } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   
-  const [isWorker, setIsWorker] = React.useState(false);
+  const [isWorker, setIsWorker] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setIsLoggedIn(true);
+        setUser(data.session.user);
+        // Check if user is admin
+        if (data.session.user?.app_metadata?.role === 'admin') {
+          setIsAdmin(true);
+        }
+      }
+    };
+    
+    checkAuthStatus();
+  }, []);
+  
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsLoggedIn(false);
+    setUser(null);
+    setIsAdmin(false);
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out.",
+    });
+    navigate('/');
+  };
   
   return (
     <PageContainer title="Profile">
@@ -20,8 +54,16 @@ const ProfilePage = () => {
             <img src="/placeholder.svg" alt="Profile" className="w-full h-full object-cover" />
           </div>
           <div className="flex-1">
-            <h2 className="font-semibold">Guest User</h2>
-            <p className="text-sm text-gray-500">Add your details to personalize your experience</p>
+            <h2 className="font-semibold">
+              {isLoggedIn ? (user?.email || "Logged In User") : "Guest User"}
+            </h2>
+            <p className="text-sm text-gray-500">
+              {isLoggedIn 
+                ? isAdmin 
+                  ? "Admin Account" 
+                  : "User Account" 
+                : "Add your details to personalize your experience"}
+            </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => navigate('/edit-profile')}>
             Edit
@@ -66,6 +108,16 @@ const ProfilePage = () => {
             
             {/* Settings List */}
             <div className="bg-white rounded-xl overflow-hidden card-shadow">
+              {isAdmin && (
+                <div 
+                  className="flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer"
+                  onClick={() => navigate('/admin')}
+                >
+                  <Shield size={18} className="text-brand-blue mr-3" />
+                  <span className="font-medium text-brand-blue">Admin Panel</span>
+                  <ChevronRight size={18} className="text-gray-400 ml-auto" />
+                </div>
+              )}
               <div 
                 className="flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer"
                 onClick={() => navigate('/account-settings')}
@@ -92,10 +144,10 @@ const ProfilePage = () => {
               </div>
               <div 
                 className="flex items-center px-4 py-3 cursor-pointer"
-                onClick={() => alert('Logged out successfully!')}
+                onClick={isLoggedIn ? handleLogout : () => navigate('/auth')}
               >
                 <LogOut size={18} className="text-red-500 mr-3" />
-                <span className="text-red-500">Logout</span>
+                <span className="text-red-500">{isLoggedIn ? "Logout" : "Login"}</span>
               </div>
             </div>
           </>

@@ -12,7 +12,8 @@ import WorkerProfile from "./pages/WorkerProfile";
 import ProfilePage from "./pages/ProfilePage";
 import BecomeProvider from "./pages/BecomeProvider";
 import AuthPage from "./pages/AuthPage";
-import BottomNavigation from "./components/BottomNavigation";
+import AdminPage from "./pages/AdminPage";
+import ProviderDetailPage from "./pages/ProviderDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,8 @@ const App = () => (
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/become-provider" element={<BecomeProvider />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/providers/:providerId" element={<ProviderDetailPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

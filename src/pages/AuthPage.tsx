@@ -1,211 +1,184 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PageContainer from '@/components/PageContainer';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { PhoneCall, CheckCircle, ArrowRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const AuthPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   
-  // OTP input references
-  const inputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
-  
-  const handleSendOTP = () => {
-    // Validate phone number (simple validation)
-    if (phoneNumber.length < 10) {
-      toast({
-        title: "Invalid Phone Number",
-        description: "Please enter a valid phone number",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Mock OTP sending
-    toast({
-      title: "OTP Sent",
-      description: `A verification code has been sent to ${phoneNumber}`,
+  useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/');
+      }
     });
-    setOtpSent(true);
-  };
+  }, [navigate]);
   
-  const handleChangeOTP = (index: number, value: string) => {
-    // Allow only numbers
-    if (value && !/^\d+$/.test(value)) return;
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
     
-    // Update OTP state
-    const newOTP = [...otp];
-    newOTP[index] = value;
-    setOtp(newOTP);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
     
-    // Move to next input field if value is entered
-    if (value && index < 3) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-  
-  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    // Move to previous input field on backspace if current field is empty
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-  
-  const handleVerifyOTP = () => {
-    // Check if OTP is complete
-    if (otp.join('').length !== 4) {
+    setLoading(false);
+    
+    if (error) {
       toast({
-        title: "Incomplete OTP",
-        description: "Please enter the complete verification code",
+        title: "Sign Up Failed",
+        description: error.message,
         variant: "destructive",
       });
-      return;
-    }
-    
-    setIsVerifying(true);
-    
-    // Mock OTP verification (with success)
-    setTimeout(() => {
-      setIsVerifying(false);
+    } else {
       toast({
-        title: "Verification Successful",
-        description: "You've been successfully authenticated",
+        title: "Sign Up Successful",
+        description: "Check your email for the confirmation link.",
       });
-      navigate('/');
-    }, 1500);
+    }
+  };
+  
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    setLoading(false);
+    
+    if (error) {
+      toast({
+        title: "Sign In Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Sign In Successful",
+        description: "Welcome back!",
+      });
+      
+      // Special case for admin login
+      if (email === 'admin@example.com') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
+    }
   };
   
   return (
-    <div className="min-h-screen flex flex-col bg-white">
-      {/* App Logo/Header */}
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-brand-blue">Swift Homes Connect</h1>
-        <p className="text-gray-500 text-sm">Connect with home service professionals</p>
-      </div>
-      
-      <div className="flex-1 flex flex-col justify-center px-6 py-12">
-        {!otpSent ? (
-          /* Phone Number Input Screen */
-          <div className="space-y-6 animate-fade-in">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <PhoneCall size={28} className="text-brand-blue" />
-              </div>
-              <h2 className="text-xl font-semibold">Phone Verification</h2>
-              <p className="text-sm text-gray-500 mt-1">We'll send you a one-time password</p>
-            </div>
+    <PageContainer title="Account">
+      <div className="flex justify-center items-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Account</CardTitle>
+            <CardDescription>Sign in to access your account or create a new one.</CardDescription>
+          </CardHeader>
+          <Tabs defaultValue="signin">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
             
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <div className="flex mt-1">
-                  <div className="bg-gray-50 flex items-center justify-center px-3 border border-r-0 border-gray-300 rounded-l-md">
-                    <span className="text-gray-500">+91</span>
-                  </div>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="Enter your phone number"
-                    className="rounded-l-none"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                  />
-                </div>
-              </div>
-              
-              <Button 
-                className="w-full"
-                onClick={handleSendOTP}
-                disabled={phoneNumber.length < 10}
-              >
-                Send Verification Code
-              </Button>
-            </div>
-          </div>
-        ) : (
-          /* OTP Verification Screen */
-          <div className="space-y-6 animate-fade-in">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle size={28} className="text-brand-blue" />
-              </div>
-              <h2 className="text-xl font-semibold">Verify OTP</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Enter the code sent to {phoneNumber}
-              </p>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="otp" className="block mb-2">Verification Code</Label>
-                <div className="flex justify-center gap-2">
-                  {[0, 1, 2, 3].map((index) => (
+            <TabsContent value="signin">
+              <form onSubmit={handleSignIn}>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-email">Email</Label>
                     <Input
-                      key={index}
-                      ref={(el) => (inputRefs.current[index] = el)}
-                      type="text"
-                      maxLength={1}
-                      className="w-12 h-12 text-center text-lg"
-                      value={otp[index]}
-                      onChange={(e) => handleChangeOTP(index, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(index, e)}
+                      id="signin-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
                     />
-                  ))}
-                </div>
-              </div>
-              
-              <Button 
-                className="w-full"
-                onClick={handleVerifyOTP}
-                disabled={otp.join('').length !== 4 || isVerifying}
-              >
-                {isVerifying ? 'Verifying...' : 'Verify & Continue'}
-                {!isVerifying && <ArrowRight size={16} className="ml-2" />}
-              </Button>
-              
-              <div className="text-center">
-                <Button 
-                  variant="link" 
-                  className="text-brand-blue"
-                  onClick={() => setOtpSent(false)}
-                >
-                  Change Phone Number
-                </Button>
-              </div>
-              
-              <div className="text-center">
-                <Button 
-                  variant="link" 
-                  className="text-gray-500"
-                  onClick={handleSendOTP}
-                >
-                  Resend OTP
-                </Button>
-              </div>
-            </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="signin-password">Password</Label>
+                      <Button variant="link" className="h-auto p-0 text-xs">
+                        Forgot password?
+                      </Button>
+                    </div>
+                    <Input
+                      id="signin-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button className="w-full" disabled={loading}>
+                    {loading ? "Signing in..." : "Sign In"}
+                  </Button>
+                </CardFooter>
+              </form>
+            </TabsContent>
+            
+            <TabsContent value="signup">
+              <form onSubmit={handleSignUp}>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-gray-500">
+                      Password must be at least 6 characters long.
+                    </p>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button className="w-full" disabled={loading}>
+                    {loading ? "Creating account..." : "Create Account"}
+                  </Button>
+                </CardFooter>
+              </form>
+            </TabsContent>
+          </Tabs>
+          <div className="px-6 pb-4 text-center">
+            <p className="text-xs text-gray-500 mt-4">
+              By signing up, you agree to our Terms of Service and Privacy Policy.
+            </p>
           </div>
-        )}
+        </Card>
       </div>
-      
-      {/* Skip Button (for demo purposes) */}
-      <div className="py-4 text-center">
-        <Button 
-          variant="ghost" 
-          className="text-gray-500"
-          onClick={() => navigate('/')}
-        >
-          Skip for Now
-        </Button>
-      </div>
-    </div>
+    </PageContainer>
   );
 };
 
