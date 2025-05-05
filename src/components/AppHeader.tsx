@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Bell } from 'lucide-react';
+import { ChevronLeft, Bell, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AppHeaderProps {
@@ -48,6 +48,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       </div>
       
       <div className="flex items-center">
+        <div className="flex items-center mr-3">
+          <MapPin size={16} className="text-brand-blue mr-1" />
+          <span className="text-sm font-medium">New Delhi, India</span>
+        </div>
         <button className="p-2 rounded-full hover:bg-gray-100">
           <Bell size={20} className="text-gray-700" />
         </button>

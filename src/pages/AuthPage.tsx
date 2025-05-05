@@ -63,8 +63,8 @@ const AuthPage = () => {
       
       if (error) throw error;
       
-      // Check if user is admin (for admin@example.com)
-      if (email.toLowerCase() === 'admin@example.com') {
+      // Check if user is admin (added your email)
+      if (email.toLowerCase() === 'admin@example.com' || email.toLowerCase() === 'nullcoder404official@gmail.com') {
         // Set admin role in metadata if not already set
         await supabase.auth.updateUser({
           data: { role: 'admin' }

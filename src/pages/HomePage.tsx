@@ -52,7 +52,7 @@ const HomePage = () => {
         {/* Location Bar */}
         <div className="flex items-center mb-6">
           <MapPin size={18} className="text-brand-blue mr-2" />
-          <span className="text-sm font-medium">San Francisco, CA</span>
+          <span className="text-sm font-medium">New Delhi, India</span>
         </div>
         
         {/* Search Bar */}
