@@ -19,10 +19,13 @@ const ProfilePage = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     const checkAuthStatus = async () => {
+      setIsLoading(true);
       const { data } = await supabase.auth.getSession();
+      
       if (data.session) {
         setIsLoggedIn(true);
         setUser(data.session.user);
@@ -30,11 +33,15 @@ const ProfilePage = () => {
         if (data.session.user?.app_metadata?.role === 'admin') {
           setIsAdmin(true);
         }
+      } else {
+        // Redirect to login page if not logged in
+        navigate('/auth');
       }
+      setIsLoading(false);
     };
     
     checkAuthStatus();
-  }, []);
+  }, [navigate]);
   
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -45,8 +52,18 @@ const ProfilePage = () => {
       title: "Logged Out",
       description: "You have been successfully logged out.",
     });
-    navigate('/');
+    navigate('/auth');
   };
+  
+  if (isLoading) {
+    return (
+      <PageContainer>
+        <div className="flex justify-center items-center h-[80vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-blue"></div>
+        </div>
+      </PageContainer>
+    );
+  }
   
   return (
     <PageContainer title="Profile">

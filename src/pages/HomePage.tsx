@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, ArrowRight, Star } from 'lucide-react';
+import { Search, ArrowRight, Star } from 'lucide-react';
 import PageContainer from '@/components/PageContainer';
 import { Button } from '@/components/ui/button';
 
@@ -48,13 +48,7 @@ const HomePage = () => {
   
   return (
     <PageContainer>
-      <div className="px-4 py-2">
-        {/* Location Bar */}
-        <div className="flex items-center mb-6">
-          <MapPin size={18} className="text-brand-blue mr-2" />
-          <span className="text-sm font-medium">New Delhi, India</span>
-        </div>
-        
+      <div className="px-4 py-4">
         {/* Search Bar */}
         <div 
           className="flex items-center bg-gray-100 rounded-full pl-4 pr-3 py-3 mb-8"

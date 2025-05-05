@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Filter, MapPin } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,15 +30,6 @@ const ServicesPage = () => {
   return (
     <PageContainer title="Services" showBack>
       <div className="p-4">
-        {/* Location */}
-        <div className="flex items-center mb-4">
-          <MapPin size={18} className="text-brand-blue mr-2" />
-          <span className="text-sm">San Francisco, CA</span>
-          <Button variant="ghost" className="text-brand-blue ml-auto text-sm p-0">
-            Change
-          </Button>
-        </div>
-        
         {/* Search Bar */}
         <div className="relative mb-6">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />

@@ -1,8 +1,14 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Bell, MapPin } from 'lucide-react';
+import { ChevronLeft, Bell, MapPin, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface AppHeaderProps {
   title?: string;
@@ -10,6 +16,15 @@ interface AppHeaderProps {
   transparent?: boolean;
   className?: string;
 }
+
+const locations = [
+  "New Delhi, India",
+  "Mumbai, India",
+  "Bangalore, India",
+  "Hyderabad, India",
+  "Chennai, India",
+  "Kolkata, India"
+];
 
 const AppHeader: React.FC<AppHeaderProps> = ({ 
   title, 
@@ -19,12 +34,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [currentLocation, setCurrentLocation] = useState("New Delhi, India");
   
   const handleBack = () => {
     if (location.pathname === "/") {
       return;
     }
     navigate(-1);
+  };
+
+  const handleLocationChange = (newLocation: string) => {
+    setCurrentLocation(newLocation);
   };
   
   return (
@@ -48,11 +68,27 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       </div>
       
       <div className="flex items-center">
-        <div className="flex items-center mr-3">
-          <MapPin size={16} className="text-brand-blue mr-1" />
-          <span className="text-sm font-medium">New Delhi, India</span>
-        </div>
-        <button className="p-2 rounded-full hover:bg-gray-100">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center text-sm font-medium hover:bg-gray-100 px-2 py-1 rounded">
+              <MapPin size={16} className="text-brand-blue mr-1" />
+              <span>{currentLocation}</span>
+              <ChevronDown size={14} className="ml-1 text-gray-500" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {locations.map((loc) => (
+              <DropdownMenuItem 
+                key={loc} 
+                onClick={() => handleLocationChange(loc)}
+                className={currentLocation === loc ? "bg-gray-100 font-medium" : ""}
+              >
+                {loc}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <button className="p-2 rounded-full hover:bg-gray-100 ml-2">
           <Bell size={20} className="text-gray-700" />
         </button>
       </div>

@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,9 +27,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ isLoggedIn, user, isAdmin
               ? "Admin Account" 
               : "User Account" 
             : "Add your details to personalize your experience"}
-        </p>
-        <p className="text-xs text-gray-500 flex items-center mt-1">
-          <MapPin size={12} className="mr-1" /> New Delhi, India
         </p>
       </div>
       <Button 
