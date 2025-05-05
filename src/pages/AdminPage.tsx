@@ -1,12 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import { supabase } from '@/integrations/supabase/client';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
+import ServiceProviderTable from '@/components/admin/ServiceProviderTable';
+import EmptyState from '@/components/admin/EmptyState';
+import StatusBadge from '@/components/admin/StatusBadge';
 
 interface ServiceProvider {
   id: string;
@@ -108,19 +109,6 @@ const AdminPage = () => {
     }
   };
   
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      case 'approved':
-        return <Badge variant="outline" className="bg-green-100 text-green-800">Approved</Badge>;
-      case 'rejected':
-        return <Badge variant="outline" className="bg-red-100 text-red-800">Rejected</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
   const filterProviders = (status: string) => {
     if (status === 'all') return providers;
     return providers.filter(provider => provider.status === status);
@@ -155,66 +143,13 @@ const AdminPage = () => {
           {['pending', 'approved', 'rejected'].map(status => (
             <TabsContent key={status} value={status}>
               {filterProviders(status).length > 0 ? (
-                <div className="rounded-md border overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Service</TableHead>
-                        <TableHead>City</TableHead>
-                        <TableHead>Experience</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filterProviders(status).map((provider) => (
-                        <TableRow key={provider.id}>
-                          <TableCell className="font-medium">{provider.name}</TableCell>
-                          <TableCell>{provider.service_category}</TableCell>
-                          <TableCell>{provider.city}</TableCell>
-                          <TableCell>{provider.experience}</TableCell>
-                          <TableCell>{getStatusBadge(provider.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => navigate(`/admin/providers/${provider.id}`)}
-                              >
-                                View
-                              </Button>
-                              {provider.status === 'pending' && (
-                                <>
-                                  <Button
-                                    variant="outline" 
-                                    size="sm"
-                                    className="bg-green-100 text-green-800 hover:bg-green-200"
-                                    onClick={() => updateProviderStatus(provider.id, 'approved')}
-                                  >
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    variant="outline" 
-                                    size="sm"
-                                    className="bg-red-100 text-red-800 hover:bg-red-200"
-                                    onClick={() => updateProviderStatus(provider.id, 'rejected')}
-                                  >
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                <ServiceProviderTable 
+                  providers={filterProviders(status)} 
+                  updateProviderStatus={updateProviderStatus}
+                  getStatusBadge={(status) => <StatusBadge status={status} />}
+                />
               ) : (
-                <div className="text-center py-8 border rounded-md bg-gray-50">
-                  <p className="text-gray-500">No {status} applications found</p>
-                </div>
+                <EmptyState status={status} />
               )}
             </TabsContent>
           ))}
