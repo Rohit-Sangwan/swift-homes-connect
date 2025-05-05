@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { User, Settings, Star, Clock, LogOut, ChevronRight, Bell, Phone, Shield } from 'lucide-react';
+import { User, Settings, Star, Clock, LogOut, ChevronRight, Bell, Phone, Shield, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import BottomNavigation from '@/components/BottomNavigation';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -47,7 +48,7 @@ const ProfilePage = () => {
   
   return (
     <PageContainer title="Profile">
-      <div className="p-4">
+      <div className="p-4 pb-20">
         {/* Profile Header */}
         <div className="flex items-center mb-6">
           <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden mr-4">
@@ -64,8 +65,16 @@ const ProfilePage = () => {
                   : "User Account" 
                 : "Add your details to personalize your experience"}
             </p>
+            <p className="text-xs text-gray-500 flex items-center mt-1">
+              <MapPin size={12} className="mr-1" /> New Delhi, India
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => navigate('/edit-profile')}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate('/account-settings')}
+            className="rounded-full hover:bg-brand-blue hover:text-white border-brand-blue text-brand-blue transition-colors"
+          >
             Edit
           </Button>
         </div>
@@ -86,20 +95,20 @@ const ProfilePage = () => {
               <h3 className="font-medium mb-3">Quick Actions</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col items-center">
-                  <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full bg-blue-50 text-brand-blue mb-1">
-                    <Star size={20} />
+                  <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-blue-50 text-brand-blue mb-1 hover:scale-105 transition-transform shadow-sm">
+                    <Star size={22} />
                   </Button>
                   <span className="text-xs">Favorites</span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full bg-orange-50 text-brand-orange mb-1">
-                    <Clock size={20} />
+                  <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-orange-50 text-brand-orange mb-1 hover:scale-105 transition-transform shadow-sm">
+                    <Clock size={22} />
                   </Button>
                   <span className="text-xs">History</span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full bg-green-50 text-green-600 mb-1">
-                    <Phone size={20} />
+                  <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-green-50 text-green-600 mb-1 hover:scale-105 transition-transform shadow-sm">
+                    <Phone size={22} />
                   </Button>
                   <span className="text-xs">Support</span>
                 </div>
@@ -162,7 +171,7 @@ const ProfilePage = () => {
                 List your services and start getting job requests from customers in your area.
               </p>
               <Button 
-                className="bg-brand-blue hover:bg-brand-blue/90"
+                className="bg-brand-blue hover:bg-brand-blue/90 rounded-full px-6"
                 onClick={() => navigate('/become-provider')}
               >
                 Register as Provider
@@ -205,6 +214,7 @@ const ProfilePage = () => {
           </div>
         )}
       </div>
+      <BottomNavigation />
     </PageContainer>
   );
 };

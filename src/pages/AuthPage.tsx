@@ -55,31 +55,43 @@ const AuthPage = () => {
     e.preventDefault();
     setLoading(true);
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    setLoading(false);
-    
-    if (error) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
+      // Check if user is admin (for admin@example.com)
+      if (email.toLowerCase() === 'admin@example.com') {
+        // Set admin role in metadata if not already set
+        await supabase.auth.updateUser({
+          data: { role: 'admin' }
+        });
+        
+        toast({
+          title: "Admin Login Successful",
+          description: "Welcome to admin dashboard!",
+        });
+        
+        navigate('/admin');
+      } else {
+        toast({
+          title: "Sign In Successful",
+          description: "Welcome back!",
+        });
+        
+        navigate('/');
+      }
+    } catch (error: any) {
       toast({
         title: "Sign In Failed",
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Sign In Successful",
-        description: "Welcome back!",
-      });
-      
-      // Special case for admin login
-      if (email === 'admin@example.com') {
-        navigate('/admin');
-      } else {
-        navigate('/');
-      }
+    } finally {
+      setLoading(false);
     }
   };
   
