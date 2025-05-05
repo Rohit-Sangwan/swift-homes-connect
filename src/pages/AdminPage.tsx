@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
@@ -73,7 +72,12 @@ const AdminPage = () => {
         variant: "destructive",
       });
     } else {
-      setProviders(data || []);
+      // Type assertion to ensure the status is properly typed
+      const typedData = (data || []).map(provider => ({
+        ...provider,
+        status: provider.status as 'pending' | 'approved' | 'rejected'
+      }));
+      setProviders(typedData);
     }
     setLoading(false);
   };

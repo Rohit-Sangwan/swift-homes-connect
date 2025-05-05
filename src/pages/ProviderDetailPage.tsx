@@ -80,8 +80,12 @@ const ProviderDetailPage = () => {
         description: "Failed to load provider details.",
         variant: "destructive",
       });
-    } else {
-      setProvider(data);
+    } else if (data) {
+      // Type assertion to ensure the status is properly typed
+      setProvider({
+        ...data,
+        status: data.status as 'pending' | 'approved' | 'rejected'
+      });
     }
     setLoading(false);
   };
