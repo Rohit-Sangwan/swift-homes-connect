@@ -2,12 +2,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { User, Settings, Star, Clock, LogOut, ChevronRight, Bell, Phone, Shield, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import BottomNavigation from '@/components/BottomNavigation';
+import ProfileHeader from '@/components/profile/ProfileHeader';
+import CustomerQuickActions from '@/components/profile/CustomerQuickActions';
+import SettingsList from '@/components/profile/SettingsList';
+import WorkerView from '@/components/profile/WorkerView';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -48,36 +50,13 @@ const ProfilePage = () => {
   
   return (
     <PageContainer title="Profile">
-      <div className="p-4 pb-20">
+      <div className="p-4">
         {/* Profile Header */}
-        <div className="flex items-center mb-6">
-          <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden mr-4">
-            <img src="/placeholder.svg" alt="Profile" className="w-full h-full object-cover" />
-          </div>
-          <div className="flex-1">
-            <h2 className="font-semibold">
-              {isLoggedIn ? (user?.email || "Logged In User") : "Guest User"}
-            </h2>
-            <p className="text-sm text-gray-500">
-              {isLoggedIn 
-                ? isAdmin 
-                  ? "Admin Account" 
-                  : "User Account" 
-                : "Add your details to personalize your experience"}
-            </p>
-            <p className="text-xs text-gray-500 flex items-center mt-1">
-              <MapPin size={12} className="mr-1" /> New Delhi, India
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => navigate('/account-settings')}
-            className="rounded-full hover:bg-brand-blue hover:text-white border-brand-blue text-brand-blue transition-colors"
-          >
-            Edit
-          </Button>
-        </div>
+        <ProfileHeader 
+          isLoggedIn={isLoggedIn} 
+          user={user} 
+          isAdmin={isAdmin} 
+        />
         
         {/* Account Type Toggle */}
         <Tabs defaultValue="customer" className="mb-6">
@@ -88,130 +67,17 @@ const ProfilePage = () => {
         </Tabs>
         
         {/* Customer View */}
-        {!isWorker && (
+        {!isWorker ? (
           <>
-            {/* Quick Actions */}
-            <div className="bg-white rounded-xl p-4 mb-6 card-shadow">
-              <h3 className="font-medium mb-3">Quick Actions</h3>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="flex flex-col items-center">
-                  <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-blue-50 text-brand-blue mb-1 hover:scale-105 transition-transform shadow-sm">
-                    <Star size={22} />
-                  </Button>
-                  <span className="text-xs">Favorites</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-orange-50 text-brand-orange mb-1 hover:scale-105 transition-transform shadow-sm">
-                    <Clock size={22} />
-                  </Button>
-                  <span className="text-xs">History</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-green-50 text-green-600 mb-1 hover:scale-105 transition-transform shadow-sm">
-                    <Phone size={22} />
-                  </Button>
-                  <span className="text-xs">Support</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Settings List */}
-            <div className="bg-white rounded-xl overflow-hidden card-shadow">
-              {isAdmin && (
-                <div 
-                  className="flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer"
-                  onClick={() => navigate('/admin')}
-                >
-                  <Shield size={18} className="text-brand-blue mr-3" />
-                  <span className="font-medium text-brand-blue">Admin Panel</span>
-                  <ChevronRight size={18} className="text-gray-400 ml-auto" />
-                </div>
-              )}
-              <div 
-                className="flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer"
-                onClick={() => navigate('/account-settings')}
-              >
-                <User size={18} className="text-gray-500 mr-3" />
-                <span>Account Settings</span>
-                <ChevronRight size={18} className="text-gray-400 ml-auto" />
-              </div>
-              <div 
-                className="flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer"
-                onClick={() => navigate('/notifications')}
-              >
-                <Bell size={18} className="text-gray-500 mr-3" />
-                <span>Notifications</span>
-                <ChevronRight size={18} className="text-gray-400 ml-auto" />
-              </div>
-              <div 
-                className="flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer"
-                onClick={() => navigate('/app-settings')}
-              >
-                <Settings size={18} className="text-gray-500 mr-3" />
-                <span>App Settings</span>
-                <ChevronRight size={18} className="text-gray-400 ml-auto" />
-              </div>
-              <div 
-                className="flex items-center px-4 py-3 cursor-pointer"
-                onClick={isLoggedIn ? handleLogout : () => navigate('/auth')}
-              >
-                <LogOut size={18} className="text-red-500 mr-3" />
-                <span className="text-red-500">{isLoggedIn ? "Logout" : "Login"}</span>
-              </div>
-            </div>
+            <CustomerQuickActions />
+            <SettingsList 
+              isAdmin={isAdmin} 
+              isLoggedIn={isLoggedIn}
+              handleLogout={handleLogout}
+            />
           </>
-        )}
-        
-        {/* Worker View */}
-        {isWorker && (
-          <div className="space-y-6">
-            <div className="bg-brand-blue/10 border-2 border-brand-blue/20 rounded-xl p-4 text-center">
-              <h3 className="font-medium mb-2">Become a Service Provider</h3>
-              <p className="text-sm text-gray-600 mb-3">
-                List your services and start getting job requests from customers in your area.
-              </p>
-              <Button 
-                className="bg-brand-blue hover:bg-brand-blue/90 rounded-full px-6"
-                onClick={() => navigate('/become-provider')}
-              >
-                Register as Provider
-              </Button>
-            </div>
-            
-            <div className="bg-white rounded-xl p-4 card-shadow">
-              <h3 className="font-medium mb-3">Benefits of being a Service Provider</h3>
-              <div className="space-y-3">
-                <div className="flex">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600">✓</div>
-                  <div>
-                    <h4 className="text-sm font-medium">Find Local Customers</h4>
-                    <p className="text-xs text-gray-500">Connect with customers in your area</p>
-                  </div>
-                </div>
-                <div className="flex">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600">✓</div>
-                  <div>
-                    <h4 className="text-sm font-medium">Direct Communication</h4>
-                    <p className="text-xs text-gray-500">Talk directly with customers via phone</p>
-                  </div>
-                </div>
-                <div className="flex">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600">✓</div>
-                  <div>
-                    <h4 className="text-sm font-medium">Build Reputation</h4>
-                    <p className="text-xs text-gray-500">Earn reviews and ratings for your work</p>
-                  </div>
-                </div>
-                <div className="flex">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600">✓</div>
-                  <div>
-                    <h4 className="text-sm font-medium">Free Registration</h4>
-                    <p className="text-xs text-gray-500">No fees to list your services</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        ) : (
+          <WorkerView />
         )}
       </div>
       <BottomNavigation />
