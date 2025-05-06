@@ -30,7 +30,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const [currentLocation, setCurrentLocation] = useState("San Francisco, CA");
+  const [currentLocation, setCurrentLocation] = useState<string | null>(null);
+  const [loadingLocation, setLoadingLocation] = useState(true);
   const [mapboxApiKey, setMapboxApiKey] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -38,23 +39,34 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
-    // In a production app, we would get this from environment variables or Supabase secrets
-    // For now, we'll use localStorage to demo functionality
+    // Check for saved location first
+    const savedLocation = localStorage.getItem('user_location');
+    if (savedLocation) {
+      setCurrentLocation(savedLocation);
+      setLoadingLocation(false);
+    }
+    
+    // Get API key
     const savedApiKey = localStorage.getItem('mapbox_api_key');
     if (savedApiKey) {
       setMapboxApiKey(savedApiKey);
     }
     
-    // Try to get user's location if they allow
-    if (navigator.geolocation) {
+    // Try to get user's current location if no saved location
+    if (!savedLocation && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         position => {
           reverseGeocode(position.coords.latitude, position.coords.longitude);
         },
         error => {
           console.log("Unable to retrieve your location", error);
+          setCurrentLocation("Set your location");
+          setLoadingLocation(false);
         }
       );
+    } else if (!savedLocation) {
+      setCurrentLocation("Set your location");
+      setLoadingLocation(false);
     }
   }, []);
 
@@ -67,6 +79,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const handleLocationChange = (newLocation: string) => {
     setCurrentLocation(newLocation);
+    localStorage.setItem('user_location', newLocation);
     setIsDialogOpen(false);
     
     toast({
@@ -103,7 +116,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   };
 
   const reverseGeocode = async (latitude: number, longitude: number) => {
-    if (!mapboxApiKey) return;
+    if (!mapboxApiKey) {
+      setCurrentLocation("Set your location");
+      setLoadingLocation(false);
+      return;
+    }
     
     try {
       const response = await fetch(
@@ -113,10 +130,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       const data = await response.json();
       
       if (data.features && data.features.length > 0) {
-        setCurrentLocation(data.features[0].place_name);
+        const locationName = data.features[0].place_name;
+        setCurrentLocation(locationName);
+        localStorage.setItem('user_location', locationName);
+      } else {
+        setCurrentLocation("Location found");
       }
     } catch (error) {
       console.error("Error reverse geocoding:", error);
+      setCurrentLocation("Set your location");
+    } finally {
+      setLoadingLocation(false);
     }
   };
   
@@ -163,7 +187,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           <DialogTrigger asChild>
             <button className="flex items-center text-sm font-medium hover:bg-gray-100 px-2 py-1 rounded">
               <MapPin size={16} className="text-brand-blue mr-1" />
-              <span>{currentLocation}</span>
+              <span>{loadingLocation ? "Loading location..." : currentLocation}</span>
             </button>
           </DialogTrigger>
           <DialogContent className="max-w-md">

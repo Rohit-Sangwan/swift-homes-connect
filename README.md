@@ -1,73 +1,106 @@
-# Welcome to your Lovable project
 
-## Project info
+# Service Provider Marketplace
 
-**URL**: https://lovable.dev/projects/c6d1f965-eca4-4d40-aa0f-df963d529b0e
+A marketplace platform connecting customers with local service providers.
 
-## How can I edit this code?
+## Project Overview
 
-There are several ways of editing your application.
+This application enables:
+- Users to find and connect with service providers in their area
+- Service providers to create profiles and get discovered
+- Administrators to manage the platform and users
 
-**Use Lovable**
+## Key Features
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c6d1f965-eca4-4d40-aa0f-df963d529b0e) and start prompting.
+- **Location-based service provider discovery**
+- **Service provider profiles and applications**
+- **User authentication and accounts**
+- **Admin dashboard for platform management**
+- **Real-time location detection using Mapbox**
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
+## Technology Stack
 
 This project is built with:
+- **React** - Frontend library
+- **TypeScript** - Type-safe JavaScript
+- **Tailwind CSS** - Utility-first CSS framework
+- **shadcn/ui** - UI components 
+- **Supabase** - Backend as a Service (Auth, Database)
+- **Mapbox** - Location and map services
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Project Structure
 
-## How can I deploy this project?
+```
+src/
+├── components/         # Reusable UI components
+│   ├── admin/          # Admin-specific components
+│   ├── profile/        # User profile components
+│   └── ui/             # shadcn UI components
+├── hooks/              # Custom React hooks
+├── integrations/       # External service integrations
+│   └── supabase/       # Supabase client and types
+├── lib/                # Utility functions and helpers
+├── pages/              # Page components for routing
+└── App.tsx             # Main application component
+```
 
-Simply open [Lovable](https://lovable.dev/projects/c6d1f965-eca4-4d40-aa0f-df963d529b0e) and click on Share -> Publish.
+## Database Structure
 
-## Can I connect a custom domain to my Lovable project?
+The application uses Supabase as its backend with the following main tables:
 
-Yes, you can!
+- **service_providers** - Contains service provider profiles with the following fields:
+  - id (uuid) - Primary key
+  - user_id (uuid) - Foreign key to auth.users
+  - name (text) - Provider's name
+  - phone (text) - Contact number
+  - address (text) - Physical address
+  - city (text) - City location
+  - service_category (text) - Type of service offered
+  - experience (text) - Years of experience
+  - price_range (text) - Service price range
+  - about (text) - Provider description
+  - profile_image_url (text, optional) - Profile image
+  - id_proof_url (text, optional) - Verification document
+  - status (text) - 'pending', 'approved', or 'rejected'
+  - created_at (timestamp) - Record creation time
+  - updated_at (timestamp) - Record update time
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Admin Panel
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+The admin panel provides comprehensive platform management capabilities:
+
+1. **Service Provider Management**
+   - Review and approve/reject provider applications
+   - View all providers with filtering options
+
+2. **User Management**
+   - View and manage user accounts
+   - Control user access and permissions
+
+3. **Analytics & Insights**
+   - View platform metrics and statistics
+   - Monitor user activity and engagement
+
+4. **Content Management**
+   - Manage service categories
+   - Configure featured providers
+
+5. **System Settings**
+   - Configure platform behavior
+   - Manage API integrations and keys
+
+## Getting Started
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up Supabase credentials
+4. Set up Mapbox API key
+5. Run development server: `npm run dev`
+
+## Environment Setup
+
+For the application to work correctly, you need to configure:
+
+1. Supabase URL and API key (automatically configured via Lovable)
+2. Mapbox API key (for location services)
+   - You can add this through the app interface in Settings

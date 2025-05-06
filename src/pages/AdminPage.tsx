@@ -38,9 +38,9 @@ interface User {
   id: string;
   email: string;
   created_at: string;
-  last_sign_in_at: string;
+  last_sign_in_at: string | null;
   role?: string;
-  status: 'active' | 'blocked'; // Fixed: Explicitly define allowed values
+  status: 'active' | 'blocked'; 
 }
 
 const AdminPage = () => {
@@ -147,47 +147,67 @@ const AdminPage = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Since we can't use admin API directly, we'll use a workaround to get user data
-      // In a real application, this would be handled through a secure backend API
+      // Get all authenticated users from auth schema via users' table
+      // Since we can't directly query auth.users, we'll get users who have signed up
+      // and have interacted with our application
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
       
-      // Get all authenticated users who have accessed the application
-      const { data: authData, error: authError } = await supabase
-        .from('service_providers')
-        .select('user_id')
-        .is('user_id', 'not.null');
-      
-      if (authError) throw authError;
-      
-      // Create a mock list of users based on service providers
-      // This is a simplified approach - in a real app, you would use a proper admin API
-      const mockUsers: User[] = await Promise.all((authData || []).map(async (provider) => {
-        // Get additional user info if available
-        const { data: userData } = await supabase.auth.getUser();
-        
-        return {
-          id: provider.user_id || 'unknown',
-          email: userData?.user?.email || 'user@example.com',
-          created_at: new Date().toISOString(),
-          last_sign_in_at: new Date().toISOString(),
-          role: Math.random() > 0.8 ? 'admin' : 'user',
-          status: 'active' as 'active' | 'blocked' // Explicitly cast to the allowed type
-        };
-      }));
-      
-      // Add the current admin user
-      const { data: currentUser } = await supabase.auth.getUser();
-      if (currentUser?.user) {
-        mockUsers.unshift({
-          id: currentUser.user.id,
-          email: currentUser.user.email || 'nullcoder404official@gmail.com',
-          created_at: currentUser.user.created_at || new Date().toISOString(),
-          last_sign_in_at: currentUser.user.last_sign_in_at || new Date().toISOString(),
-          role: 'admin',
-          status: 'active' as 'active' | 'blocked'
-        });
+      if (authError) {
+        throw authError;
       }
       
-      setUsers(mockUsers);
+      if (authUsers) {
+        // Convert to our User interface format
+        const formattedUsers: User[] = authUsers.users.map(user => ({
+          id: user.id,
+          email: user.email || 'no-email',
+          created_at: user.created_at || new Date().toISOString(),
+          last_sign_in_at: user.last_sign_in_at,
+          role: user.app_metadata?.role || 'user',
+          status: user.banned ? 'blocked' : 'active'
+        }));
+        
+        setUsers(formattedUsers);
+      } else {
+        // Fallback to getting users from service providers table
+        const { data: providersData } = await supabase
+          .from('service_providers')
+          .select('user_id')
+          .not('user_id', 'is', null);
+          
+        // Get unique user IDs
+        const uniqueUserIds = [...new Set((providersData || []).map(p => p.user_id))];
+        
+        // Create basic user objects from the available data
+        const basicUsers: User[] = uniqueUserIds.map(id => ({
+          id,
+          email: `user-${id.substring(0, 8)}@example.com`, // Placeholder email
+          created_at: new Date().toISOString(),
+          last_sign_in_at: null,
+          role: 'user',
+          status: 'active' 
+        }));
+        
+        // Make sure admin is included
+        const currentUserData = await supabase.auth.getUser();
+        if (currentUserData.data?.user) {
+          const currentUser = currentUserData.data.user;
+          const adminAlreadyExists = basicUsers.some(u => u.id === currentUser.id);
+          
+          if (!adminAlreadyExists) {
+            basicUsers.unshift({
+              id: currentUser.id,
+              email: currentUser.email || 'admin@example.com',
+              created_at: currentUser.created_at,
+              last_sign_in_at: currentUser.last_sign_in_at,
+              role: 'admin',
+              status: 'active'
+            });
+          }
+        }
+        
+        setUsers(basicUsers);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -201,29 +221,38 @@ const AdminPage = () => {
 
   const fetchAnalyticsData = async () => {
     try {
-      // Get total approved providers
-      const { data: providersData, error: providersError } = await supabase
-        .from('service_providers')
-        .select('id, status')
-        .eq('status', 'approved');
+      // Get counts from actual Supabase data
+      const [providersResponse, pendingResponse, servicesResponse] = await Promise.all([
+        // Count approved providers
+        supabase
+          .from('service_providers')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'approved'),
+          
+        // Count pending providers  
+        supabase
+          .from('service_providers')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending'),
+          
+        // Get distinct service categories
+        supabase
+          .from('service_providers')
+          .select('service_category')
+          .not('service_category', 'is', null)
+      ]);
       
-      // Get total pending providers
-      const { data: pendingData, error: pendingError } = await supabase
-        .from('service_providers')
-        .select('id')
-        .eq('status', 'pending');
+      // Get unique categories
+      const uniqueCategories = [...new Set((servicesResponse.data || []).map(p => p.service_category))];
       
-      // For demo, simulate total users based on providers (in reality would be from users table)
-      const totalUsers = Math.floor(Math.random() * 100) + 50; // Random number 50-150
-      
-      // For demo, simulate total services categories
-      const totalServices = 8; // Our hardcoded categories count
+      // Calculate total users - will be at least 1 (the admin)
+      const totalUsers = users.length > 0 ? users.length : 1;
       
       setAnalyticsData({
         totalUsers,
-        totalProviders: providersData?.length || 0,
-        pendingApprovals: pendingData?.length || 0,
-        totalServices
+        totalProviders: providersResponse.count || 0,
+        pendingApprovals: pendingResponse.count || 0,
+        totalServices: uniqueCategories.length || 0
       });
     } catch (error) {
       console.error('Error fetching analytics data:', error);
@@ -553,7 +582,9 @@ const AdminPage = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">{analyticsData.totalUsers}</div>
-                      <p className="text-xs text-green-500 mt-1">↑ 12% from last month</p>
+                      <p className="text-xs text-green-500 mt-1">
+                        {analyticsData.totalUsers > 0 ? "Active user accounts" : "No users yet"}
+                      </p>
                     </CardContent>
                   </Card>
                   
@@ -563,7 +594,9 @@ const AdminPage = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">{analyticsData.totalProviders}</div>
-                      <p className="text-xs text-green-500 mt-1">↑ 5% from last month</p>
+                      <p className="text-xs text-green-500 mt-1">
+                        {analyticsData.totalProviders > 0 ? "Approved providers" : "No providers yet"}
+                      </p>
                     </CardContent>
                   </Card>
                   
@@ -575,7 +608,11 @@ const AdminPage = () => {
                       <div className="text-2xl font-bold">{analyticsData.pendingApprovals}</div>
                       <div className="flex items-center mt-1">
                         <Clock className="h-3 w-3 text-amber-500 mr-1" />
-                        <span className="text-xs text-amber-500">Requires attention</span>
+                        <span className="text-xs text-amber-500">
+                          {analyticsData.pendingApprovals > 0 
+                            ? "Requires attention" 
+                            : "No pending approvals"}
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
@@ -586,81 +623,91 @@ const AdminPage = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">{analyticsData.totalServices}</div>
-                      <p className="text-xs text-blue-500 mt-1">Complete coverage</p>
+                      <p className="text-xs text-blue-500 mt-1">
+                        {analyticsData.totalServices > 0 
+                          ? "Active service categories" 
+                          : "No categories yet"}
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
                 
-                {/* User Activity */}
+                {/* Recent Activity */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Recent User Activity</CardTitle>
+                    <CardTitle>Recent Activity</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {[...Array(5)].map((_, i) => (
-                        <div key={i} className="flex items-center justify-between border-b pb-2">
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
-                              <Users className="h-4 w-4 text-gray-600" />
+                    {providers.length > 0 ? (
+                      <div className="space-y-4">
+                        {providers.slice(0, 5).map((provider, index) => (
+                          <div key={provider.id} className="flex items-center justify-between border-b pb-2">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+                                <Users className="h-4 w-4 text-gray-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">{provider.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {provider.status === 'pending' ? 'Applied to be a provider' : 
+                                   provider.status === 'approved' ? 'Was approved as a provider' : 
+                                   'Was rejected as a provider'}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium">User{i + 1}@example.com</p>
-                              <p className="text-xs text-gray-500">
-                                {['Logged in', 'Updated profile', 'Contacted provider', 'Viewed services', 'Left a review'][i]}
-                              </p>
+                            <div className="text-xs text-gray-500">
+                              {new Date(provider.created_at).toLocaleDateString()}
                             </div>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {Math.floor(Math.random() * 10) + 1} hours ago
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        No recent activity to display.
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
                 
                 {/* Top Rated Providers */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Top Rated Providers</CardTitle>
+                    <CardTitle>Active Providers</CardTitle>
                     <Button variant="ghost" size="sm" className="gap-1">
                       <span>View All</span>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {providers
-                        .filter(provider => provider.status === 'approved')
-                        .slice(0, 3)
-                        .map((provider, i) => (
-                          <div key={provider.id} className="flex items-center justify-between">
-                            <div className="flex items-center">
-                              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                                <span className="text-blue-600 font-semibold">{provider.name.charAt(0)}</span>
-                              </div>
-                              <div>
-                                <p className="font-medium">{provider.name}</p>
-                                <div className="flex items-center">
-                                  <span className="text-xs mr-2">{provider.service_category}</span>
-                                  <div className="flex">
-                                    {[...Array(5)].map((_, idx) => (
-                                      <Star 
-                                        key={idx}
-                                        className={`h-3 w-3 ${idx < 4 + (i === 0 ? 1 : 0) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
-                                      />
-                                    ))}
+                    {providers.filter(provider => provider.status === 'approved').length > 0 ? (
+                      <div className="space-y-4">
+                        {providers
+                          .filter(provider => provider.status === 'approved')
+                          .slice(0, 3)
+                          .map((provider) => (
+                            <div key={provider.id} className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                  <span className="text-blue-600 font-semibold">{provider.name.charAt(0)}</span>
+                                </div>
+                                <div>
+                                  <p className="font-medium">{provider.name}</p>
+                                  <div className="flex items-center">
+                                    <span className="text-xs mr-2">{provider.service_category}</span>
                                   </div>
                                 </div>
                               </div>
+                              <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
+                                {provider.city}
+                              </span>
                             </div>
-                            <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
-                              {provider.city}
-                            </span>
-                          </div>
-                        ))}
-                    </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        No approved providers yet.
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -686,46 +733,45 @@ const AdminPage = () => {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Category</TableHead>
-                            <TableHead>Icon</TableHead>
                             <TableHead>Providers</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {[
-                            { name: 'Plumbing', icon: '🔧', providers: 35, active: true },
-                            { name: 'Electrical', icon: '⚡', providers: 28, active: true },
-                            { name: 'Cleaning', icon: '🧹', providers: 42, active: true },
-                            { name: 'Painting', icon: '🎨', providers: 19, active: true },
-                            { name: 'Carpentry', icon: '🪚', providers: 23, active: true },
-                            { name: 'Gardening', icon: '🌱', providers: 15, active: true },
-                            { name: 'Appliances', icon: '🔌', providers: 31, active: true },
-                          ].map((category, i) => (
-                            <TableRow key={i}>
-                              <TableCell className="font-medium">{category.name}</TableCell>
-                              <TableCell>{category.icon}</TableCell>
-                              <TableCell>{category.providers}</TableCell>
-                              <TableCell>
-                                <span className={`px-2 py-1 rounded-full text-xs ${
-                                  category.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {category.active ? 'Active' : 'Hidden'}
-                                </span>
-                              </TableCell>
-                              <TableCell className="space-x-1">
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  {category.active ? <Ban className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </Button>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                          {providers.length > 0 ? (
+                            [...new Set(providers.map(p => p.service_category))].map((category, i) => {
+                              const providersInCategory = providers.filter(p => p.service_category === category).length;
+                              return (
+                                <TableRow key={i}>
+                                  <TableCell className="font-medium">{category}</TableCell>
+                                  <TableCell>{providersInCategory}</TableCell>
+                                  <TableCell>
+                                    <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                      Active
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="space-x-1">
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                      <Ban className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                                No categories available. Add service providers to create categories.
                               </TableCell>
                             </TableRow>
-                          ))}
+                          )}
                         </TableBody>
                       </Table>
                     </div>
@@ -748,50 +794,49 @@ const AdminPage = () => {
                           <TableRow>
                             <TableHead>Provider</TableHead>
                             <TableHead>Category</TableHead>
-                            <TableHead>Rating</TableHead>
+                            <TableHead>City</TableHead>
                             <TableHead>Featured</TableHead>
                             <TableHead>Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {providers
-                            .filter(provider => provider.status === 'approved')
-                            .slice(0, 5)
-                            .map((provider, i) => (
-                              <TableRow key={provider.id}>
-                                <TableCell className="font-medium">{provider.name}</TableCell>
-                                <TableCell>{provider.service_category}</TableCell>
-                                <TableCell>
-                                  <div className="flex">
-                                    {[...Array(5)].map((_, idx) => (
-                                      <Star 
-                                        key={idx}
-                                        className={`h-3 w-3 ${idx < 4 + (i === 0 ? 1 : 0) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
-                                      />
-                                    ))}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <span className={`px-2 py-1 rounded-full text-xs ${
-                                    i < 3 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                  }`}>
-                                    {i < 3 ? 'Featured' : 'Not Featured'}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="space-x-1">
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                    {i < 3 ? (
-                                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                    ) : (
-                                      <Star className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                          {providers.filter(provider => provider.status === 'approved').length > 0 ? (
+                            providers
+                              .filter(provider => provider.status === 'approved')
+                              .slice(0, 5)
+                              .map((provider, i) => (
+                                <TableRow key={provider.id}>
+                                  <TableCell className="font-medium">{provider.name}</TableCell>
+                                  <TableCell>{provider.service_category}</TableCell>
+                                  <TableCell>{provider.city}</TableCell>
+                                  <TableCell>
+                                    <span className={`px-2 py-1 rounded-full text-xs ${
+                                      i < 3 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {i < 3 ? 'Featured' : 'Not Featured'}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="space-x-1">
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                      {i < 3 ? (
+                                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                      ) : (
+                                        <Star className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                                No approved providers to feature.
+                              </TableCell>
+                            </TableRow>
+                          )}
                         </TableBody>
                       </Table>
                     </div>
@@ -834,37 +879,11 @@ const AdminPage = () => {
                 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Recent Notifications</CardTitle>
+                    <CardTitle>Notification History</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {[...Array(5)].map((_, i) => (
-                        <div key={i} className="flex items-start border-b pb-3">
-                          <div className={`p-2 rounded-full mr-3 ${
-                            ['bg-blue-100', 'bg-green-100', 'bg-amber-100', 'bg-red-100', 'bg-purple-100'][i]
-                          }`}>
-                            {[<Bell />, <Award />, <MapPin />, <AlertTriangle />, <Users />][i]}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium">
-                              {[
-                                'Welcome to our platform!', 
-                                'New feature available',
-                                'Update your location',
-                                'Important system maintenance',
-                                'Invite your friends'
-                              ][i]}
-                            </p>
-                            <p className="text-sm text-gray-500">Sent to all users</p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {i + 1} day{i !== 0 ? 's' : ''} ago
-                            </p>
-                          </div>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+                    <div className="text-center py-8 text-gray-500">
+                      No notification history available. Send your first notification using the form above.
                     </div>
                   </CardContent>
                 </Card>
@@ -879,8 +898,8 @@ const AdminPage = () => {
                       <CardTitle className="text-sm font-medium text-gray-500">Total Revenue</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">$12,480</div>
-                      <p className="text-xs text-green-500 mt-1">↑ 8% from last month</p>
+                      <div className="text-2xl font-bold">$0</div>
+                      <p className="text-xs text-gray-500 mt-1">No revenue data available</p>
                     </CardContent>
                   </Card>
                   
@@ -889,8 +908,8 @@ const AdminPage = () => {
                       <CardTitle className="text-sm font-medium text-gray-500">Premium Subscriptions</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">32</div>
-                      <p className="text-xs text-green-500 mt-1">↑ 12% from last month</p>
+                      <div className="text-2xl font-bold">0</div>
+                      <p className="text-xs text-gray-500 mt-1">No subscriptions yet</p>
                     </CardContent>
                   </Card>
                   
@@ -899,8 +918,8 @@ const AdminPage = () => {
                       <CardTitle className="text-sm font-medium text-gray-500">Featured Listings</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">18</div>
-                      <p className="text-xs text-amber-500 mt-1">→ Same as last month</p>
+                      <div className="text-2xl font-bold">0</div>
+                      <p className="text-xs text-gray-500 mt-1">No featured listings yet</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -931,7 +950,6 @@ const AdminPage = () => {
                             { name: 'Basic', price: 'Free', features: '3 basic features', active: true },
                             { name: 'Standard', price: '$29/mo', features: '10 features + priority listing', active: true },
                             { name: 'Premium', price: '$99/mo', features: 'All features + featured placement', active: true },
-                            { name: 'Enterprise', price: 'Custom', features: 'Unlimited + dedicated support', active: false },
                           ].map((plan, i) => (
                             <TableRow key={i}>
                               <TableCell className="font-medium">{plan.name}</TableCell>
@@ -965,32 +983,8 @@ const AdminPage = () => {
                     <CardTitle>Recent Transactions</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {[...Array(5)].map((_, i) => (
-                        <div key={i} className="flex items-center justify-between border-b pb-3">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                              <DollarSign className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="font-medium">
-                                {['Standard Plan Subscription', 'Featured Listing', 'Premium Plan Upgrade', 'Basic Plan Subscription', 'Enterprise Custom Plan'][i]}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {['john.smith@example.com', 'maria.garcia@example.com', 'david.lee@example.com', 'sarah.johnson@example.com', 'michael.wang@example.com'][i]}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">
-                              {['$29.00', '$15.00', '$70.00', 'Free', '$199.00'][i]}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {i + 1} day{i !== 0 ? 's' : ''} ago
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="text-center py-8 text-gray-500">
+                      No transaction history available.
                     </div>
                   </CardContent>
                 </Card>
@@ -1016,15 +1010,15 @@ const AdminPage = () => {
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-sm font-medium">Categories</p>
-                          <span className="text-sm">8 records</span>
+                          <span className="text-sm">{analyticsData.totalServices} records</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-sm font-medium">Reviews</p>
-                          <span className="text-sm">124 records</span>
+                          <span className="text-sm">0 records</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-sm font-medium">Last Backup</p>
-                          <span className="text-sm text-green-500">Today at 00:00</span>
+                          <span className="text-sm text-gray-500">No backups yet</span>
                         </div>
                       </div>
                     </CardContent>
@@ -1048,10 +1042,6 @@ const AdminPage = () => {
                           <Filter className="h-4 w-4 mr-2" />
                           Clean Database
                         </Button>
-                        <Button className="w-full justify-start" variant="outline">
-                          <AlertTriangle className="h-4 w-4 mr-2" />
-                          Reset Test Data
-                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -1059,49 +1049,60 @@ const AdminPage = () => {
                 
                 <Card>
                   <CardHeader>
-                    <CardTitle>API Usage</CardTitle>
+                    <CardTitle>Database Tables</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm font-medium">Authentication API</span>
-                          <span className="text-sm">1.2k requests / day</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2.5">
-                          <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: '25%' }}></div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm font-medium">Service Provider API</span>
-                          <span className="text-sm">3.4k requests / day</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2.5">
-                          <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: '65%' }}></div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm font-medium">Search API</span>
-                          <span className="text-sm">4.8k requests / day</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2.5">
-                          <div className="bg-amber-500 h-2.5 rounded-full" style={{ width: '85%' }}></div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm font-medium">User Data API</span>
-                          <span className="text-sm">2.1k requests / day</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2.5">
-                          <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: '45%' }}></div>
-                        </div>
-                      </div>
+                    <div className="space-y-4">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Table Name</TableHead>
+                            <TableHead>Records</TableHead>
+                            <TableHead>Last Updated</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell>service_providers</TableCell>
+                            <TableCell>{providers.length}</TableCell>
+                            <TableCell>
+                              {providers.length > 0 
+                                ? new Date(Math.max(...providers.map(p => new Date(p.created_at).getTime()))).toLocaleDateString() 
+                                : 'No data'}
+                            </TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>users</TableCell>
+                            <TableCell>{users.length}</TableCell>
+                            <TableCell>
+                              {users.length > 0
+                                ? new Date(Math.max(...users.map(u => new Date(u.created_at).getTime()))).toLocaleDateString()
+                                : 'No data'}
+                            </TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>reviews</TableCell>
+                            <TableCell>0</TableCell>
+                            <TableCell>No data</TableCell>
+                            <TableCell>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
                     </div>
                   </CardContent>
                 </Card>
@@ -1166,30 +1167,31 @@ const AdminPage = () => {
                   <CardContent>
                     <div className="space-y-6">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Google Maps API Key</label>
+                        <label className="text-sm font-medium">Mapbox API Key</label>
                         <div className="flex gap-2">
                           <Input type="password" value="•••••••••••••••••••••••••••••" disabled className="flex-1" />
                           <Button variant="outline">Reveal</Button>
                           <Button variant="outline">Update</Button>
                         </div>
+                        <p className="text-xs text-gray-500">Used for location services and map display</p>
                       </div>
                       
                       <div className="space-y-2">
                         <label className="text-sm font-medium">SMTP Server Settings</label>
                         <div className="flex gap-2">
-                          <Input type="password" value="•••••••••••••••••••••••••••••" disabled className="flex-1" />
-                          <Button variant="outline">Reveal</Button>
-                          <Button variant="outline">Update</Button>
+                          <Input placeholder="Not configured" disabled className="flex-1" />
+                          <Button variant="outline">Configure</Button>
                         </div>
+                        <p className="text-xs text-gray-500">Required for sending email notifications</p>
                       </div>
                       
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Payment Gateway API Key</label>
                         <div className="flex gap-2">
-                          <Input type="password" value="•••••••••••••••••••••••••••••" disabled className="flex-1" />
-                          <Button variant="outline">Reveal</Button>
-                          <Button variant="outline">Update</Button>
+                          <Input placeholder="Not configured" disabled className="flex-1" />
+                          <Button variant="outline">Configure</Button>
                         </div>
+                        <p className="text-xs text-gray-500">Required for processing payments</p>
                       </div>
                     </div>
                   </CardContent>
