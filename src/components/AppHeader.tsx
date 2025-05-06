@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
 
 interface AppHeaderProps {
   title?: string;
@@ -28,11 +29,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const [currentLocation, setCurrentLocation] = useState("San Francisco, CA");
   const [mapboxApiKey, setMapboxApiKey] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
     // In a production app, we would get this from environment variables or Supabase secrets
@@ -40,6 +43,18 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     const savedApiKey = localStorage.getItem('mapbox_api_key');
     if (savedApiKey) {
       setMapboxApiKey(savedApiKey);
+    }
+    
+    // Try to get user's location if they allow
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          reverseGeocode(position.coords.latitude, position.coords.longitude);
+        },
+        error => {
+          console.log("Unable to retrieve your location", error);
+        }
+      );
     }
   }, []);
 
@@ -53,10 +68,17 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const handleLocationChange = (newLocation: string) => {
     setCurrentLocation(newLocation);
     setIsDialogOpen(false);
+    
+    toast({
+      title: "Location Updated",
+      description: `Your location has been updated to ${newLocation}`,
+    });
   };
 
   const handleLocationSearch = async () => {
     if (!mapboxApiKey || !locationInput.trim()) return;
+    
+    setIsLoading(true);
     
     try {
       const response = await fetch(
@@ -70,14 +92,49 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       }
     } catch (error) {
       console.error("Error searching locations:", error);
+      toast({
+        title: "Error",
+        description: "Failed to search locations. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const reverseGeocode = async (latitude: number, longitude: number) => {
+    if (!mapboxApiKey) return;
+    
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${mapboxApiKey}&types=place,locality,neighborhood`
+      );
+      
+      const data = await response.json();
+      
+      if (data.features && data.features.length > 0) {
+        setCurrentLocation(data.features[0].place_name);
+      }
+    } catch (error) {
+      console.error("Error reverse geocoding:", error);
+    }
+  };
+  
   const saveApiKey = () => {
     const input = document.getElementById('mapbox-api-key') as HTMLInputElement;
     if (input && input.value) {
       localStorage.setItem('mapbox_api_key', input.value);
       setMapboxApiKey(input.value);
+      toast({
+        title: "API Key Saved",
+        description: "Your Mapbox API key has been saved successfully.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Please enter a valid API key.",
+        variant: "destructive",
+      });
     }
   };
   
@@ -135,7 +192,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                     onChange={(e) => setLocationInput(e.target.value)}
                     onKeyUp={(e) => e.key === 'Enter' && handleLocationSearch()}
                   />
-                  <Button onClick={handleLocationSearch}>Search</Button>
+                  <Button onClick={handleLocationSearch} disabled={isLoading}>
+                    {isLoading ? 'Searching...' : 'Search'}
+                  </Button>
                 </div>
                 
                 {suggestions.length > 0 && (
@@ -153,17 +212,51 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                   </div>
                 )}
                 
-                {suggestions.length === 0 && locationInput && (
+                {suggestions.length === 0 && locationInput && !isLoading && (
                   <div className="text-center py-4 text-gray-500">
                     No locations found. Try a different search term.
                   </div>
                 )}
+                
+                <div className="pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          position => {
+                            reverseGeocode(position.coords.latitude, position.coords.longitude);
+                            setIsDialogOpen(false);
+                            toast({
+                              title: "Location Updated",
+                              description: "Using your current location",
+                            });
+                          },
+                          error => {
+                            toast({
+                              title: "Error",
+                              description: "Unable to get your location. Please enable location services.",
+                              variant: "destructive",
+                            });
+                          }
+                        );
+                      }
+                    }}
+                  >
+                    Use Current Location
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>
         </Dialog>
         
-        <button className="p-2 rounded-full hover:bg-gray-100 ml-2">
+        <button 
+          className="p-2 rounded-full hover:bg-gray-100 ml-2"
+          onClick={() => navigate('/notifications')}
+        >
           <Bell size={20} className="text-gray-700" />
         </button>
       </div>
