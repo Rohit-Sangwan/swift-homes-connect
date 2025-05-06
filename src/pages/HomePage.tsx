@@ -16,6 +16,14 @@ const serviceCategories = [
   { id: 'more', name: 'More', icon: '➕', color: 'bg-gray-100' },
 ];
 
+const allCategories = [
+  ...serviceCategories,
+  { id: 'roofing', name: 'Roofing', icon: '🏠', color: 'bg-teal-100' },
+  { id: 'hvac', name: 'HVAC', icon: '❄️', color: 'bg-indigo-100' },
+  { id: 'flooring', name: 'Flooring', icon: '🧱', color: 'bg-rose-100' },
+  { id: 'moving', name: 'Moving', icon: '📦', color: 'bg-amber-100' },
+];
+
 const featuredWorkers = [
   {
     id: '1',
@@ -78,7 +86,12 @@ const HomePage = () => {
         {/* Top Rated Professionals */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Top Rated Professionals</h2>
-          <Button variant="ghost" size="sm" className="text-brand-blue flex items-center">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-brand-blue flex items-center"
+            onClick={() => navigate('/services')}
+          >
             View all <ArrowRight size={16} className="ml-1" />
           </Button>
         </div>
@@ -111,6 +124,23 @@ const HomePage = () => {
           ))}
         </div>
         
+        {/* All Categories section */}
+        <h2 className="text-lg font-semibold mb-4">All Categories</h2>
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          {allCategories.map((category) => (
+            <div 
+              key={category.id} 
+              className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex flex-col items-center cursor-pointer"
+              onClick={() => navigate(`/services/${category.id}`)}
+            >
+              <div className={`w-10 h-10 ${category.color} rounded-full flex items-center justify-center mb-1 text-lg`}>
+                {category.icon}
+              </div>
+              <span className="text-xs text-center font-medium">{category.name}</span>
+            </div>
+          ))}
+        </div>
+        
         {/* Quick Actions */}
         <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 gap-4">
@@ -124,9 +154,9 @@ const HomePage = () => {
           <Button 
             variant="outline" 
             className="h-auto py-4 border-2 border-brand-orange text-brand-orange bg-orange-50 hover:bg-orange-100"
-            onClick={() => navigate('/emergency-services')}
+            onClick={() => navigate('/profile')}
           >
-            Emergency Services
+            User Account
           </Button>
         </div>
       </div>

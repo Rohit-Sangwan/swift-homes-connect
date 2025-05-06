@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Star, Phone, Calendar, Clock, MapPin, MessageSquare, ArrowLeft } from 'lucide-react';
+import { Star, Phone, Calendar, Clock, MapPin, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -100,13 +100,10 @@ const WorkerProfile = () => {
           </div>
         </div>
         
-        {/* Contact button */}
-        <div className="flex gap-2 mb-6">
-          <Button className="flex-1 gap-2">
+        {/* Contact button - Removed Message button and kept only Call Now */}
+        <div className="mb-6">
+          <Button className="w-full gap-2">
             <Phone size={16} /> Call Now
-          </Button>
-          <Button variant="outline" className="flex-1 gap-2">
-            <MessageSquare size={16} /> Message
           </Button>
         </div>
         

@@ -18,6 +18,7 @@ interface AppHeaderProps {
 }
 
 const locations = [
+  "San Francisco, CA",
   "New Delhi, India",
   "Mumbai, India",
   "Bangalore, India",
@@ -34,7 +35,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [currentLocation, setCurrentLocation] = useState("New Delhi, India");
+  const [currentLocation, setCurrentLocation] = useState("San Francisco, CA");
   
   const handleBack = () => {
     if (location.pathname === "/") {
