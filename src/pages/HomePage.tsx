@@ -16,14 +16,6 @@ const serviceCategories = [
   { id: 'more', name: 'More', icon: '➕', color: 'bg-gray-100' },
 ];
 
-const allCategories = [
-  ...serviceCategories,
-  { id: 'roofing', name: 'Roofing', icon: '🏠', color: 'bg-teal-100' },
-  { id: 'hvac', name: 'HVAC', icon: '❄️', color: 'bg-indigo-100' },
-  { id: 'flooring', name: 'Flooring', icon: '🧱', color: 'bg-rose-100' },
-  { id: 'moving', name: 'Moving', icon: '📦', color: 'bg-amber-100' },
-];
-
 const featuredWorkers = [
   {
     id: '1',
@@ -120,23 +112,6 @@ const HomePage = () => {
                 </div>
               </div>
               <ArrowRight size={18} className="text-gray-400" />
-            </div>
-          ))}
-        </div>
-        
-        {/* All Categories section */}
-        <h2 className="text-lg font-semibold mb-4">All Categories</h2>
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          {allCategories.map((category) => (
-            <div 
-              key={category.id} 
-              className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex flex-col items-center cursor-pointer"
-              onClick={() => navigate(`/services/${category.id}`)}
-            >
-              <div className={`w-10 h-10 ${category.color} rounded-full flex items-center justify-center mb-1 text-lg`}>
-                {category.icon}
-              </div>
-              <span className="text-xs text-center font-medium">{category.name}</span>
             </div>
           ))}
         </div>

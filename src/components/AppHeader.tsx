@@ -1,14 +1,17 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Bell, MapPin, ChevronDown } from 'lucide-react';
+import { ChevronLeft, Bell, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from '@/components/ui/input';
 
 interface AppHeaderProps {
   title?: string;
@@ -16,16 +19,6 @@ interface AppHeaderProps {
   transparent?: boolean;
   className?: string;
 }
-
-const locations = [
-  "San Francisco, CA",
-  "New Delhi, India",
-  "Mumbai, India",
-  "Bangalore, India",
-  "Hyderabad, India",
-  "Chennai, India",
-  "Kolkata, India"
-];
 
 const AppHeader: React.FC<AppHeaderProps> = ({ 
   title, 
@@ -36,7 +29,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [currentLocation, setCurrentLocation] = useState("San Francisco, CA");
+  const [mapboxApiKey, setMapboxApiKey] = useState<string | null>(null);
+  const [locationInput, setLocationInput] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   
+  useEffect(() => {
+    // In a production app, we would get this from environment variables or Supabase secrets
+    // For now, we'll use localStorage to demo functionality
+    const savedApiKey = localStorage.getItem('mapbox_api_key');
+    if (savedApiKey) {
+      setMapboxApiKey(savedApiKey);
+    }
+  }, []);
+
   const handleBack = () => {
     if (location.pathname === "/") {
       return;
@@ -46,6 +52,33 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
   const handleLocationChange = (newLocation: string) => {
     setCurrentLocation(newLocation);
+    setIsDialogOpen(false);
+  };
+
+  const handleLocationSearch = async () => {
+    if (!mapboxApiKey || !locationInput.trim()) return;
+    
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(locationInput)}.json?access_token=${mapboxApiKey}&types=place,locality,neighborhood`
+      );
+      
+      const data = await response.json();
+      
+      if (data.features) {
+        setSuggestions(data.features);
+      }
+    } catch (error) {
+      console.error("Error searching locations:", error);
+    }
+  };
+
+  const saveApiKey = () => {
+    const input = document.getElementById('mapbox-api-key') as HTMLInputElement;
+    if (input && input.value) {
+      localStorage.setItem('mapbox_api_key', input.value);
+      setMapboxApiKey(input.value);
+    }
   };
   
   return (
@@ -69,26 +102,67 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       </div>
       
       <div className="flex items-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
             <button className="flex items-center text-sm font-medium hover:bg-gray-100 px-2 py-1 rounded">
               <MapPin size={16} className="text-brand-blue mr-1" />
               <span>{currentLocation}</span>
-              <ChevronDown size={14} className="ml-1 text-gray-500" />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {locations.map((loc) => (
-              <DropdownMenuItem 
-                key={loc} 
-                onClick={() => handleLocationChange(loc)}
-                className={currentLocation === loc ? "bg-gray-100 font-medium" : ""}
-              >
-                {loc}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Set Your Location</DialogTitle>
+            </DialogHeader>
+            
+            {!mapboxApiKey ? (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500">
+                  Please provide your Mapbox API key to enable location search.
+                </p>
+                <Input 
+                  id="mapbox-api-key"
+                  placeholder="Enter Mapbox API key"
+                  type="password"
+                />
+                <Button onClick={saveApiKey}>Save API Key</Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex space-x-2">
+                  <Input
+                    placeholder="Search for a location..."
+                    value={locationInput}
+                    onChange={(e) => setLocationInput(e.target.value)}
+                    onKeyUp={(e) => e.key === 'Enter' && handleLocationSearch()}
+                  />
+                  <Button onClick={handleLocationSearch}>Search</Button>
+                </div>
+                
+                {suggestions.length > 0 && (
+                  <div className="max-h-56 overflow-y-auto divide-y">
+                    {suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        className="w-full text-left py-2 px-3 hover:bg-gray-100 transition-colors"
+                        onClick={() => handleLocationChange(suggestion.place_name)}
+                      >
+                        <div className="font-medium">{suggestion.text}</div>
+                        <div className="text-xs text-gray-500">{suggestion.place_name}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {suggestions.length === 0 && locationInput && (
+                  <div className="text-center py-4 text-gray-500">
+                    No locations found. Try a different search term.
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+        
         <button className="p-2 rounded-full hover:bg-gray-100 ml-2">
           <Bell size={20} className="text-gray-700" />
         </button>
