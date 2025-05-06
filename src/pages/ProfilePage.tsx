@@ -29,9 +29,23 @@ const ProfilePage = () => {
       if (data.session) {
         setIsLoggedIn(true);
         setUser(data.session.user);
-        // Check if user is admin
-        if (data.session.user?.app_metadata?.role === 'admin') {
+        console.log("ProfilePage - User data:", data.session.user);
+        
+        // Check if user is admin by checking both metadata and email
+        const isAdminUser = data.session.user?.app_metadata?.role === 'admin' || 
+                            data.session.user?.email?.toLowerCase() === 'nullcoder404official@gmail.com';
+        
+        if (isAdminUser) {
           setIsAdmin(true);
+          console.log("ProfilePage - Admin status granted");
+          
+          // Ensure admin metadata is set
+          if (data.session.user?.app_metadata?.role !== 'admin') {
+            await supabase.auth.updateUser({
+              data: { role: 'admin' }
+            });
+            console.log("ProfilePage - Updated user metadata with admin role");
+          }
         }
       } else {
         // Redirect to login page if not logged in
@@ -63,6 +77,11 @@ const ProfilePage = () => {
         </div>
       </PageContainer>
     );
+  }
+  
+  // If not logged in, redirect to auth page
+  if (!isLoggedIn) {
+    return null; // Will redirect in checkAuthStatus
   }
   
   return (

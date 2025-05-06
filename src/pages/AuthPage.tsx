@@ -67,7 +67,8 @@ const AuthPage = () => {
       const isAdmin = email.toLowerCase() === 'nullcoder404official@gmail.com';
       
       if (isAdmin) {
-        // Set admin role in metadata if not already set
+        console.log("AuthPage - Admin login detected, updating user metadata");
+        // Set admin role in metadata
         await supabase.auth.updateUser({
           data: { role: 'admin' }
         });
@@ -77,6 +78,7 @@ const AuthPage = () => {
           description: "Welcome to admin dashboard!",
         });
         
+        // Navigate to admin panel
         navigate('/admin');
       } else {
         toast({
@@ -87,6 +89,7 @@ const AuthPage = () => {
         navigate('/');
       }
     } catch (error: any) {
+      console.error("AuthPage - Login error:", error);
       toast({
         title: "Sign In Failed",
         description: error.message,

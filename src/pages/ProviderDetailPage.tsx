@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
@@ -38,28 +37,56 @@ const ProviderDetailPage = () => {
   }, [providerId]);
   
   const checkAdminStatus = async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) {
-      const { user } = data.session;
-      if (user?.app_metadata?.role === 'admin') {
-        setIsAdmin(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      console.log("Provider detail - Current session data:", data);
+      
+      if (data.session) {
+        const { user } = data.session;
+        console.log("Provider detail - User metadata:", user?.app_metadata);
+        console.log("Provider detail - User email:", user?.email);
+        
+        // Check if user is the admin by checking both metadata and email
+        if (user?.app_metadata?.role === 'admin' || 
+            user?.email?.toLowerCase() === 'nullcoder404official@gmail.com') {
+          console.log("Provider detail - Admin status granted");
+          setIsAdmin(true);
+          
+          // Ensure admin metadata is set
+          if (user?.app_metadata?.role !== 'admin') {
+            await supabase.auth.updateUser({
+              data: { role: 'admin' }
+            });
+            console.log("Provider detail - Updated user metadata with admin role");
+          }
+        } else {
+          // Not an admin, redirect to home
+          console.log("Provider detail - Not an admin, redirecting to home");
+          navigate('/');
+          toast({
+            title: "Access Denied",
+            description: "You don't have permission to access this page.",
+            variant: "destructive",
+          });
+        }
       } else {
-        // Not an admin, redirect to home
-        navigate('/');
+        // Not logged in, redirect to login
+        console.log("Provider detail - Not logged in, redirecting to auth");
+        navigate('/auth');
         toast({
-          title: "Access Denied",
-          description: "You don't have permission to access this page.",
+          title: "Authentication Required",
+          description: "Please log in to access this page.",
           variant: "destructive",
         });
       }
-    } else {
-      // Not logged in, redirect to login
-      navigate('/auth');
+    } catch (error) {
+      console.error("Provider detail - Error checking admin status:", error);
       toast({
-        title: "Authentication Required",
-        description: "Please log in to access this page.",
+        title: "Error",
+        description: "Failed to verify admin permissions.",
         variant: "destructive",
       });
+      navigate('/');
     }
   };
   
