@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
@@ -40,7 +39,7 @@ interface User {
   created_at: string;
   last_sign_in_at: string | null;
   role?: string;
-  status: 'active' | 'blocked'; 
+  status: 'active' | 'blocked'; // This is now correctly typed as a union
 }
 
 const AdminPage = () => {
@@ -148,8 +147,6 @@ const AdminPage = () => {
     setLoading(true);
     try {
       // Get all authenticated users from auth schema via users' table
-      // Since we can't directly query auth.users, we'll get users who have signed up
-      // and have interacted with our application
       const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
       
       if (authError) {
@@ -157,14 +154,14 @@ const AdminPage = () => {
       }
       
       if (authUsers) {
-        // Convert to our User interface format
+        // Convert to our User interface format with properly typed status
         const formattedUsers: User[] = authUsers.users.map(user => ({
           id: user.id,
           email: user.email || 'no-email',
           created_at: user.created_at || new Date().toISOString(),
           last_sign_in_at: user.last_sign_in_at,
           role: user.app_metadata?.role || 'user',
-          status: user.banned ? 'blocked' : 'active'
+          status: user.banned ? 'blocked' : 'active' as 'active' | 'blocked' // Explicit type casting to match our User interface
         }));
         
         setUsers(formattedUsers);
@@ -185,7 +182,7 @@ const AdminPage = () => {
           created_at: new Date().toISOString(),
           last_sign_in_at: null,
           role: 'user',
-          status: 'active' 
+          status: 'active' as 'active' | 'blocked' // Explicitly typed status
         }));
         
         // Make sure admin is included
@@ -201,7 +198,7 @@ const AdminPage = () => {
               created_at: currentUser.created_at,
               last_sign_in_at: currentUser.last_sign_in_at,
               role: 'admin',
-              status: 'active'
+              status: 'active' as 'active' | 'blocked' // Explicitly typed status
             });
           }
         }
