@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
@@ -52,6 +51,7 @@ const AdminPage = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeSection, setActiveSection] = useState('providers');
   const [searchTerm, setSearchTerm] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0); // Add this to force refreshes
   const [analyticsData, setAnalyticsData] = useState({
     totalUsers: 0,
     totalProviders: 0,
@@ -61,9 +61,19 @@ const AdminPage = () => {
   
   useEffect(() => {
     checkAdminStatus();
-    fetchProviders();
-    fetchAnalyticsData();
   }, []);
+  
+  useEffect(() => {
+    if (isAdmin) {
+      if (activeSection === 'providers') {
+        fetchProviders();
+      } else if (activeSection === 'users') {
+        fetchUsers();
+      } else if (activeSection === 'analytics') {
+        fetchAnalyticsData();
+      }
+    }
+  }, [isAdmin, activeSection, refreshKey]);
   
   const checkAdminStatus = async () => {
     try {
@@ -121,27 +131,40 @@ const AdminPage = () => {
   
   const fetchProviders = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('service_providers')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('service_providers')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        throw error;
+      }
       
-    if (error) {
+      // Type assertion to ensure the status is properly typed
+      const typedData = (data || []).map(provider => ({
+        ...provider,
+        status: provider.status as 'pending' | 'approved' | 'rejected'
+      }));
+      
+      console.log("Fetched providers:", typedData);
+      console.log("Approved providers:", typedData.filter(p => p.status === 'approved').length);
+      
+      setProviders(typedData);
+      toast({
+        title: "Data Loaded",
+        description: `Loaded ${typedData.length} service providers.`,
+      });
+    } catch (error) {
       console.error('Error fetching providers:', error);
       toast({
         title: "Error",
         description: "Failed to load service provider data.",
         variant: "destructive",
       });
-    } else {
-      // Type assertion to ensure the status is properly typed
-      const typedData = (data || []).map(provider => ({
-        ...provider,
-        status: provider.status as 'pending' | 'approved' | 'rejected'
-      }));
-      setProviders(typedData);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fetchUsers = async () => {
@@ -261,30 +284,34 @@ const AdminPage = () => {
   };
   
   const updateProviderStatus = async (id: string, status: 'approved' | 'rejected') => {
-    const { error } = await supabase
-      .from('service_providers')
-      .update({ status })
-      .eq('id', id);
+    try {
+      const { error } = await supabase
+        .from('service_providers')
+        .update({ status })
+        .eq('id', id);
+        
+      if (error) {
+        throw error;
+      }
       
-    if (error) {
-      console.error('Error updating provider status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update provider status.",
-        variant: "destructive",
-      });
-    } else {
       // Update local state
       setProviders(providers.map(provider => 
         provider.id === id ? {...provider, status} : provider
       ));
       
-      // Refresh analytics
-      fetchAnalyticsData();
+      // Refresh data
+      setRefreshKey(prev => prev + 1);
       
       toast({
         title: "Success",
         description: `Provider ${status === 'approved' ? 'approved' : 'rejected'} successfully.`,
+      });
+    } catch (error) {
+      console.error('Error updating provider status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update provider status.",
+        variant: "destructive",
       });
     }
   };
@@ -317,21 +344,28 @@ const AdminPage = () => {
 
   const filteredProviders = providers.filter(provider =>
     provider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    provider.service_category.toLowerCase().includes(searchTerm.toLowerCase())
+    provider.service_category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    provider.city.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   if (loading && activeSection === 'providers') {
     return (
       <PageContainer title="Admin Panel">
         <div className="flex justify-center items-center h-64">
-          <p>Loading...</p>
+          <p>Loading service provider data...</p>
         </div>
       </PageContainer>
     );
   }
   
   if (!isAdmin) {
-    return null; // Will redirect in checkAdminStatus
+    return (
+      <PageContainer title="Admin Panel">
+        <div className="flex justify-center items-center h-64">
+          <p>Verifying admin permissions...</p>
+        </div>
+      </PageContainer>
+    );
   }
   
   return (
