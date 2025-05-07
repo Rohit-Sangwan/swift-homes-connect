@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Upload, Camera, ArrowRight, Check } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const serviceCategories = [
   { id: 'plumbing', name: 'Plumbing' },
@@ -35,6 +36,7 @@ const BecomeProvider = () => {
   const [activeStep, setActiveStep] = useState(1);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [idProofImage, setIdProofImage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -46,6 +48,23 @@ const BecomeProvider = () => {
     priceRange: '',
     about: '',
   });
+  
+  useEffect(() => {
+    // Check if user is authenticated
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to continue",
+          variant: "destructive",
+        });
+        navigate('/auth');
+      }
+    };
+    
+    checkAuth();
+  }, [navigate, toast]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -62,7 +81,7 @@ const BecomeProvider = () => {
     }));
   };
   
-  const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -73,7 +92,7 @@ const BecomeProvider = () => {
     }
   };
   
-  const handleIdProofUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIdProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -84,17 +103,131 @@ const BecomeProvider = () => {
     }
   };
   
-  const handleSubmit = () => {
-    toast({
-      title: "Profile Submitted",
-      description: "Your service provider profile is under review. We'll notify you once it's approved.",
-      duration: 5000,
-    });
-    
-    // Navigate back to profile page
-    setTimeout(() => {
-      navigate('/profile');
-    }, 2000);
+  // Function to upload image to Supabase Storage
+  const uploadImage = async (imagePath: string, imageData: string): Promise<string | null> => {
+    try {
+      // Remove the data URL prefix to get just the base64 data
+      const base64Data = imageData.split(',')[1];
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/jpeg' });
+      
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Create a unique file path
+      const fileName = `${userId}_${Date.now()}_${imagePath}`;
+      const filePath = `providers/${fileName}`;
+      
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('provider_images')
+        .upload(filePath, blob, { contentType: 'image/jpeg' });
+      
+      if (error) {
+        console.error('Error uploading image:', error);
+        return null;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage.from('provider_images').getPublicUrl(filePath);
+      return urlData.publicUrl;
+      
+    } catch (error) {
+      console.error('Error in image upload:', error);
+      return null;
+    }
+  };
+  
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      // Get current user
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      
+      if (!userId) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in and try again",
+          variant: "destructive",
+        });
+        navigate('/auth');
+        return;
+      }
+      
+      // Upload images if available
+      let profileImageUrl = null;
+      let idProofUrl = null;
+      
+      if (profileImage) {
+        profileImageUrl = await uploadImage('profile.jpg', profileImage);
+      }
+      
+      if (idProofImage) {
+        idProofUrl = await uploadImage('id_proof.jpg', idProofImage);
+      }
+      
+      // Insert provider data into Supabase
+      const { error } = await supabase
+        .from('service_providers')
+        .insert({
+          user_id: userId,
+          name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          service_category: formData.serviceCategory,
+          experience: formData.experience,
+          price_range: formData.priceRange,
+          about: formData.about,
+          profile_image_url: profileImageUrl,
+          id_proof_url: idProofUrl,
+          status: 'pending'
+        });
+      
+      if (error) {
+        console.error('Error submitting provider data:', error);
+        toast({
+          title: "Submission Failed",
+          description: "There was an error submitting your application. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "Profile Submitted",
+        description: "Your service provider profile is under review. We'll notify you once it's approved.",
+        duration: 5000,
+      });
+      
+      // Navigate back to profile page
+      setTimeout(() => {
+        navigate('/profile');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error in form submission:', error);
+      toast({
+        title: "Submission Error",
+        description: "An unexpected error occurred. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const goToNextStep = () => {
@@ -373,9 +506,9 @@ const BecomeProvider = () => {
               <Button 
                 className="flex-1"
                 onClick={handleSubmit}
-                disabled={!idProofImage}
+                disabled={!idProofImage || isSubmitting}
               >
-                Submit Profile
+                {isSubmitting ? "Submitting..." : "Submit Profile"}
               </Button>
             </div>
           </div>
