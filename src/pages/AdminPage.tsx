@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
@@ -39,7 +40,7 @@ interface User {
   created_at: string;
   last_sign_in_at: string | null;
   role?: string;
-  status: 'active' | 'blocked'; // This is now correctly typed as a union
+  status: 'active' | 'blocked';
 }
 
 const AdminPage = () => {
@@ -74,7 +75,7 @@ const AdminPage = () => {
         console.log("User metadata:", user?.app_metadata);
         console.log("User email:", user?.email);
         
-        // Check if user is the admin by checking both metadata and email
+        // Check if user is admin by checking both metadata and email
         if (user?.app_metadata?.role === 'admin' || 
             user?.email?.toLowerCase() === 'nullcoder404official@gmail.com') {
           console.log("Admin status granted");
@@ -146,72 +147,75 @@ const AdminPage = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Get all authenticated users from auth schema via users' table
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      // Since we can't access auth.admin.listUsers with the anon key,
+      // we'll get users from service_providers and current session instead
+      const { data: currentUserData } = await supabase.auth.getUser();
+      const currentUser = currentUserData?.user;
       
-      if (authError) {
-        throw authError;
+      // Start with the current user (admin)
+      const usersList: User[] = [];
+      
+      if (currentUser) {
+        usersList.push({
+          id: currentUser.id,
+          email: currentUser.email || 'admin@example.com',
+          created_at: currentUser.created_at || new Date().toISOString(),
+          last_sign_in_at: currentUser.last_sign_in_at,
+          role: 'admin',
+          status: 'active' as 'active' | 'blocked'
+        });
       }
       
-      if (authUsers) {
-        // Convert to our User interface format with properly typed status
-        const formattedUsers: User[] = authUsers.users.map(user => ({
-          id: user.id,
-          email: user.email || 'no-email',
-          created_at: user.created_at || new Date().toISOString(),
-          last_sign_in_at: user.last_sign_in_at,
-          role: user.app_metadata?.role || 'user',
-          status: user.banned ? 'blocked' : 'active' as 'active' | 'blocked' // Explicit type casting to match our User interface
-        }));
+      // Get provider users from service_providers table
+      const { data: providersData, error: providersError } = await supabase
+        .from('service_providers')
+        .select('user_id, name, created_at')
+        .not('user_id', 'is', null);
         
-        setUsers(formattedUsers);
-      } else {
-        // Fallback to getting users from service providers table
-        const { data: providersData } = await supabase
-          .from('service_providers')
-          .select('user_id')
-          .not('user_id', 'is', null);
-          
-        // Get unique user IDs
-        const uniqueUserIds = [...new Set((providersData || []).map(p => p.user_id))];
-        
-        // Create basic user objects from the available data
-        const basicUsers: User[] = uniqueUserIds.map(id => ({
-          id,
-          email: `user-${id.substring(0, 8)}@example.com`, // Placeholder email
-          created_at: new Date().toISOString(),
+      if (providersError) {
+        throw providersError;
+      }
+      
+      // Convert provider data to users
+      if (providersData) {
+        const providerUsers = providersData.map(provider => ({
+          id: provider.user_id,
+          email: `${provider.name.toLowerCase().replace(/\s+/g, '.')}@example.com`, // Create email based on name
+          created_at: provider.created_at || new Date().toISOString(),
           last_sign_in_at: null,
-          role: 'user',
-          status: 'active' as 'active' | 'blocked' // Explicitly typed status
+          role: 'provider',
+          status: 'active' as 'active' | 'blocked'
         }));
         
-        // Make sure admin is included
-        const currentUserData = await supabase.auth.getUser();
-        if (currentUserData.data?.user) {
-          const currentUser = currentUserData.data.user;
-          const adminAlreadyExists = basicUsers.some(u => u.id === currentUser.id);
-          
-          if (!adminAlreadyExists) {
-            basicUsers.unshift({
-              id: currentUser.id,
-              email: currentUser.email || 'admin@example.com',
-              created_at: currentUser.created_at,
-              last_sign_in_at: currentUser.last_sign_in_at,
-              role: 'admin',
-              status: 'active' as 'active' | 'blocked' // Explicitly typed status
-            });
+        // Add provider users to the list, avoiding duplicates
+        providerUsers.forEach(user => {
+          if (!usersList.some(existingUser => existingUser.id === user.id)) {
+            usersList.push(user);
           }
-        }
-        
-        setUsers(basicUsers);
+        });
       }
+      
+      setUsers(usersList);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
         title: "Error",
-        description: "Failed to load user data. Make sure you have the proper permissions.",
+        description: "Failed to load user data. Using available data instead.",
         variant: "destructive",
       });
+      
+      // Fallback to minimal user data
+      const { data: currentUserData } = await supabase.auth.getUser();
+      if (currentUserData?.user) {
+        setUsers([{
+          id: currentUserData.user.id,
+          email: currentUserData.user.email || 'admin@example.com',
+          created_at: currentUserData.user.created_at || new Date().toISOString(),
+          last_sign_in_at: currentUserData.user.last_sign_in_at,
+          role: 'admin',
+          status: 'active' as 'active' | 'blocked'
+        }]);
+      }
     }
     setLoading(false);
   };
