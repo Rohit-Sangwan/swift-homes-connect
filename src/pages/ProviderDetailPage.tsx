@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import StatusBadge from '@/components/admin/StatusBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -33,7 +34,9 @@ const ProviderDetailPage = () => {
   
   useEffect(() => {
     checkAdminStatus();
-    fetchProviderDetails();
+    if (providerId) {
+      fetchProviderDetails(providerId);
+    }
   }, [providerId]);
   
   const checkAdminStatus = async () => {
@@ -90,67 +93,71 @@ const ProviderDetailPage = () => {
     }
   };
   
-  const fetchProviderDetails = async () => {
-    if (!providerId) return;
-    
+  const fetchProviderDetails = async (id: string) => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('service_providers')
-      .select('*')
-      .eq('id', providerId)
-      .single();
-      
-    if (error) {
-      console.error('Error fetching provider details:', error);
+    try {
+      const { data, error } = await supabase
+        .from('service_providers')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching provider details:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load provider details.",
+          variant: "destructive",
+        });
+      } else if (data) {
+        // Type assertion to ensure the status is properly typed
+        setProvider({
+          ...data,
+          status: data.status as 'pending' | 'approved' | 'rejected'
+        });
+      }
+    } catch (error) {
+      console.error('Error in provider details:', error);
       toast({
         title: "Error",
-        description: "Failed to load provider details.",
+        description: "Failed to process provider details.",
         variant: "destructive",
       });
-    } else if (data) {
-      // Type assertion to ensure the status is properly typed
-      setProvider({
-        ...data,
-        status: data.status as 'pending' | 'approved' | 'rejected'
-      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
   
   const updateProviderStatus = async (status: 'approved' | 'rejected') => {
     if (!provider) return;
     
-    const { error } = await supabase
-      .from('service_providers')
-      .update({ status })
-      .eq('id', provider.id);
-      
-    if (error) {
-      console.error('Error updating provider status:', error);
+    try {
+      const { error } = await supabase
+        .from('service_providers')
+        .update({ status })
+        .eq('id', provider.id);
+        
+      if (error) {
+        console.error('Error updating provider status:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update provider status.",
+          variant: "destructive",
+        });
+      } else {
+        setProvider({...provider, status});
+        toast({
+          title: "Success",
+          description: `Provider ${status === 'approved' ? 'approved' : 'rejected'} successfully.`,
+        });
+      }
+    } catch (error) {
+      console.error('Error in status update:', error);
       toast({
         title: "Error",
-        description: "Failed to update provider status.",
+        description: "Failed to process status update.",
         variant: "destructive",
       });
-    } else {
-      setProvider({...provider, status});
-      toast({
-        title: "Success",
-        description: `Provider ${status === 'approved' ? 'approved' : 'rejected'} successfully.`,
-      });
-    }
-  };
-  
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      case 'approved':
-        return <Badge variant="outline" className="bg-green-100 text-green-800">Approved</Badge>;
-      case 'rejected':
-        return <Badge variant="outline" className="bg-red-100 text-red-800">Rejected</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
     }
   };
   
@@ -165,7 +172,16 @@ const ProviderDetailPage = () => {
   }
   
   if (!isAdmin || !provider) {
-    return null; // Will redirect in checkAdminStatus
+    return (
+      <PageContainer title="Provider Details" showBack>
+        <div className="flex flex-col items-center justify-center h-64 gap-4">
+          <p className="text-red-500">{!isAdmin ? "Admin access required" : "Provider not found"}</p>
+          <Button variant="outline" onClick={() => navigate('/admin')}>
+            Back to Admin Panel
+          </Button>
+        </div>
+      </PageContainer>
+    );
   }
   
   return (
@@ -178,7 +194,7 @@ const ProviderDetailPage = () => {
                 <CardTitle className="text-xl">{provider.name}</CardTitle>
                 <CardDescription>{provider.service_category}</CardDescription>
               </div>
-              {getStatusBadge(provider.status)}
+              <StatusBadge status={provider.status} />
             </div>
             
             <div className="flex items-center mt-4">
