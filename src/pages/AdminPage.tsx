@@ -74,7 +74,7 @@ const AdminPage = () => {
     return (
       <PageContainer title="Admin Dashboard">
         <div className="flex justify-center items-center h-64">
-          <p>Loading...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-blue border-t-transparent"></div>
         </div>
       </PageContainer>
     );

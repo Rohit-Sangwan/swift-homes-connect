@@ -11,4 +11,13 @@ export interface Category {
   slug: string;
   created_at?: string;
   updated_at?: string;
+  // Add icon and color properties for UI rendering
+  icon?: string;
+  color?: string;
+}
+
+// Extended category type with UI properties
+export interface UICategory extends Category {
+  icon: string;
+  color: string;
 }

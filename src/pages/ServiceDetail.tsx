@@ -6,21 +6,7 @@ import PageContainer from '@/components/PageContainer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Category } from '@/types/database';
-
-// Map icons to category names
-const categoryIcons: { [key: string]: string } = {
-  plumbing: '🔧',
-  electrical: '⚡',
-  cleaning: '🧹',
-  painting: '🎨',
-  carpentry: '🪚',
-  gardening: '🌱',
-  appliances: '🔌',
-  roofing: '🏠',
-  hvac: '❄️',
-  flooring: '🧱',
-};
+import { Category, UICategory } from '@/types/database';
 
 interface Provider {
   id: string;
@@ -41,8 +27,13 @@ const ServiceDetail = () => {
   
   useEffect(() => {
     fetchCategoryInfo();
-    fetchProvidersByCategory();
   }, [serviceId]);
+  
+  useEffect(() => {
+    if (categoryInfo) {
+      fetchProvidersByCategory();
+    }
+  }, [categoryInfo]);
   
   const fetchCategoryInfo = async () => {
     try {
@@ -83,24 +74,14 @@ const ServiceDetail = () => {
     try {
       setLoading(true);
       
-      // Try to find category ID first if we have a slug
-      let categoryId = serviceId;
-      const { data: categoryData } = await supabase
-        .from('service_categories')
-        .select('id')
-        .eq('slug', serviceId)
-        .single();
-        
-      if (categoryData) {
-        categoryId = categoryData.id;
-      }
+      if (!categoryInfo) return;
       
-      // Fetch providers using category ID
+      // Use either the ID or the slug for the query
       const { data, error } = await supabase
         .from('service_providers')
         .select('id, name, experience, price_range, city, profile_image_url')
         .eq('status', 'approved')
-        .eq('service_category', categoryId);
+        .eq('service_category', categoryInfo.id);
         
       if (error) {
         console.error('Error fetching providers:', error);
@@ -113,16 +94,34 @@ const ServiceDetail = () => {
       setLoading(false);
     }
   };
+
+  // Get appropriate icon for category
+  const getCategoryIcon = (slug: string) => {
+    const iconMap: { [key: string]: string } = {
+      plumbing: '🔧',
+      electrical: '⚡',
+      cleaning: '🧹',
+      painting: '🎨',
+      carpentry: '🪚',
+      gardening: '🌱',
+      appliances: '🔌',
+      roofing: '🏠',
+      hvac: '❄️',
+      flooring: '🧱',
+    };
+    
+    return iconMap[slug] || '🔧';
+  };
   
-  const serviceName = categoryInfo?.name || serviceId.charAt(0).toUpperCase() + serviceId.slice(1);
-  const serviceIcon = categoryIcons[categoryInfo?.slug as keyof typeof categoryIcons] || '🔧';
+  const serviceName = categoryInfo?.name || 'Service';
+  const serviceIcon = getCategoryIcon(categoryInfo?.slug || '');
   
   return (
     <PageContainer title={serviceName} showBack>
       <div className="p-4">
         {/* Service Header */}
         <div className="flex items-center mb-4">
-          <div className={`w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3 text-xl`}>
+          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3 text-xl">
             {serviceIcon}
           </div>
           <div>

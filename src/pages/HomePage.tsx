@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowRight, Star, MapPin } from 'lucide-react';
+import { Search, ArrowRight, MapPin } from 'lucide-react';
 import PageContainer from '@/components/PageContainer';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { Category } from '@/types/database';
+import { Category, UICategory } from '@/types/database';
 
 interface Provider {
   id: string;
@@ -18,7 +17,7 @@ interface Provider {
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const [serviceCategories, setServiceCategories] = useState<Category[]>([]);
+  const [serviceCategories, setServiceCategories] = useState<UICategory[]>([]);
   const [featuredWorkers, setFeaturedWorkers] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -71,7 +70,7 @@ const HomePage = () => {
           color: getCategoryColor(category.slug)
         }));
         
-        setServiceCategories(mappedCategories);
+        setServiceCategories(mappedCategories as UICategory[]);
       }
     } catch (error) {
       console.error('Error in fetching categories:', error);
