@@ -32,8 +32,10 @@ const WorkerView: React.FC = () => {
           .eq('user_id', userId)
           .single();
           
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error checking provider status:', error);
+        if (error) {
+          if (error.code !== 'PGRST116') { // No rows found
+            console.error('Error checking provider status:', error);
+          }
         }
         
         if (data) {
@@ -78,6 +80,12 @@ const WorkerView: React.FC = () => {
           <AlertTitle className="text-green-800">Application Approved</AlertTitle>
           <AlertDescription className="text-green-700">
             Your service provider application has been approved! You can now start receiving service requests.
+            <Button 
+              className="mt-2 bg-green-600 hover:bg-green-700"
+              onClick={() => navigate('/profile/provider-dashboard')}
+            >
+              Go to Provider Dashboard
+            </Button>
           </AlertDescription>
         </Alert>
       );

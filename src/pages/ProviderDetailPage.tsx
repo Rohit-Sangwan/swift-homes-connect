@@ -42,17 +42,13 @@ const ProviderDetailPage = () => {
   const checkAdminStatus = async () => {
     try {
       const { data } = await supabase.auth.getSession();
-      console.log("Provider detail - Current session data:", data);
       
       if (data.session) {
         const { user } = data.session;
-        console.log("Provider detail - User metadata:", user?.app_metadata);
-        console.log("Provider detail - User email:", user?.email);
         
         // Check if user is the admin by checking both metadata and email
         if (user?.app_metadata?.role === 'admin' || 
             user?.email?.toLowerCase() === 'nullcoder404official@gmail.com') {
-          console.log("Provider detail - Admin status granted");
           setIsAdmin(true);
           
           // Ensure admin metadata is set
@@ -60,11 +56,9 @@ const ProviderDetailPage = () => {
             await supabase.auth.updateUser({
               data: { role: 'admin' }
             });
-            console.log("Provider detail - Updated user metadata with admin role");
           }
         } else {
           // Not an admin, redirect to home
-          console.log("Provider detail - Not an admin, redirecting to home");
           navigate('/');
           toast({
             title: "Access Denied",
@@ -74,7 +68,6 @@ const ProviderDetailPage = () => {
         }
       } else {
         // Not logged in, redirect to login
-        console.log("Provider detail - Not logged in, redirecting to auth");
         navigate('/auth');
         toast({
           title: "Authentication Required",
@@ -83,7 +76,7 @@ const ProviderDetailPage = () => {
         });
       }
     } catch (error) {
-      console.error("Provider detail - Error checking admin status:", error);
+      console.error("Error checking admin status:", error);
       toast({
         title: "Error",
         description: "Failed to verify admin permissions.",
@@ -199,11 +192,19 @@ const ProviderDetailPage = () => {
             
             <div className="flex items-center mt-4">
               {provider.profile_image_url ? (
-                <img 
-                  src={provider.profile_image_url} 
-                  alt={provider.name} 
-                  className="w-20 h-20 rounded-full object-cover mr-4"
-                />
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 mr-4">
+                  <img 
+                    src={provider.profile_image_url} 
+                    alt={provider.name} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // If image fails to load, replace with fallback
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = '/placeholder.svg';
+                    }}
+                  />
+                </div>
               ) : (
                 <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mr-4">
                   <span className="text-gray-500">No Image</span>
@@ -229,15 +230,28 @@ const ProviderDetailPage = () => {
             
             <h3 className="text-sm font-medium mb-2">ID Proof</h3>
             {provider.id_proof_url ? (
-              <div className="mb-4">
+              <div className="mb-4 border rounded-md p-2 max-w-sm">
                 <img 
                   src={provider.id_proof_url} 
                   alt="ID Proof" 
-                  className="max-w-full h-auto rounded-md border"
+                  className="max-w-full h-auto rounded-md"
+                  onError={(e) => {
+                    // If image fails to load, replace with fallback
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = '/placeholder.svg';
+                    target.parentElement?.classList.add('bg-red-50', 'p-4');
+                    const errorMsg = document.createElement('p');
+                    errorMsg.textContent = "Image could not be loaded";
+                    errorMsg.className = "text-sm text-red-500 mt-2";
+                    target.parentElement?.appendChild(errorMsg);
+                  }}
                 />
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No ID proof uploaded</p>
+              <div className="p-4 bg-gray-50 rounded-md text-center">
+                <p className="text-sm text-gray-500">No ID proof uploaded</p>
+              </div>
             )}
           </CardContent>
           {provider.status === 'pending' && (

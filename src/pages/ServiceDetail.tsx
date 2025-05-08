@@ -1,48 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Star, MapPin, Phone, Filter, SortAsc } from 'lucide-react';
 import PageContainer from '@/components/PageContainer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-
-// Mock data for service providers
-const mockProviders = {
-  plumbing: [
-    { id: 'p1', name: 'John Smith', experience: '8 years', rating: 4.8, reviews: 124, price: '₹500-1000/hr', distance: '2.3 km', image: '/placeholder.svg' },
-    { id: 'p2', name: 'Raj Kumar', experience: '5 years', rating: 4.5, reviews: 78, price: '₹400-800/hr', distance: '3.5 km', image: '/placeholder.svg' },
-    { id: 'p3', name: 'Sanjay Patel', experience: '10 years', rating: 4.9, reviews: 156, price: '₹600-1200/hr', distance: '1.8 km', image: '/placeholder.svg' },
-  ],
-  electrical: [
-    { id: 'e1', name: 'David Lee', experience: '7 years', rating: 4.7, reviews: 92, price: '₹500-900/hr', distance: '1.5 km', image: '/placeholder.svg' },
-    { id: 'e2', name: 'Vikram Singh', experience: '12 years', rating: 4.9, reviews: 210, price: '₹700-1300/hr', distance: '4.2 km', image: '/placeholder.svg' },
-  ],
-  cleaning: [
-    { id: 'c1', name: 'Maria Garcia', experience: '6 years', rating: 4.9, reviews: 87, price: '₹300-600/hr', distance: '2.8 km', image: '/placeholder.svg' },
-    { id: 'c2', name: 'Priya Sharma', experience: '4 years', rating: 4.6, reviews: 63, price: '₹250-500/hr', distance: '3.1 km', image: '/placeholder.svg' },
-  ],
-  painting: [
-    { id: 'pt1', name: 'Ravi Verma', experience: '9 years', rating: 4.7, reviews: 118, price: '₹400-800/day', distance: '5.2 km', image: '/placeholder.svg' },
-  ],
-  carpentry: [
-    { id: 'cp1', name: 'Mohammed Ali', experience: '15 years', rating: 4.8, reviews: 142, price: '₹600-1100/day', distance: '3.7 km', image: '/placeholder.svg' },
-  ],
-  gardening: [
-    { id: 'g1', name: 'Suresh Kumar', experience: '8 years', rating: 4.6, reviews: 79, price: '₹350-700/day', distance: '2.9 km', image: '/placeholder.svg' },
-  ],
-  appliances: [
-    { id: 'a1', name: 'Amit Patel', experience: '6 years', rating: 4.5, reviews: 64, price: '₹500-900/hr', distance: '4.5 km', image: '/placeholder.svg' },
-  ],
-  roofing: [
-    { id: 'r1', name: 'Harish Mehta', experience: '11 years', rating: 4.7, reviews: 93, price: '₹800-1500/day', distance: '6.1 km', image: '/placeholder.svg' },
-  ],
-  hvac: [
-    { id: 'h1', name: 'Prakash Joshi', experience: '9 years', rating: 4.8, reviews: 87, price: '₹700-1200/hr', distance: '3.8 km', image: '/placeholder.svg' },
-  ],
-  flooring: [
-    { id: 'f1', name: 'Deepak Shah', experience: '7 years', rating: 4.6, reviews: 72, price: '₹500-1000/day', distance: '5.5 km', image: '/placeholder.svg' },
-  ],
-};
+import { supabase } from '@/integrations/supabase/client';
 
 // Map icons to category names
 const categoryIcons = {
@@ -58,16 +21,49 @@ const categoryIcons = {
   flooring: '🧱',
 };
 
+interface Provider {
+  id: string;
+  name: string;
+  experience: string;
+  price_range: string;
+  city: string;
+  profile_image_url: string | null;
+}
+
 const ServiceDetail = () => {
   const { serviceId = 'plumbing' } = useParams<{ serviceId: string }>();
   const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(false);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [loading, setLoading] = useState(true);
   
   // Format service name with proper capitalization
   const serviceName = serviceId.charAt(0).toUpperCase() + serviceId.slice(1);
   
-  // Get providers for this service, defaulting to plumbing if not found
-  const providers = mockProviders[serviceId as keyof typeof mockProviders] || mockProviders.plumbing;
+  useEffect(() => {
+    fetchProvidersByCategory();
+  }, [serviceId]);
+  
+  const fetchProvidersByCategory = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('service_providers')
+        .select('id, name, experience, price_range, city, profile_image_url')
+        .eq('status', 'approved')
+        .eq('service_category', serviceId);
+        
+      if (error) {
+        console.error('Error fetching providers:', error);
+      } else {
+        setProviders(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetching providers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   return (
     <PageContainer title={serviceName} showBack>
@@ -108,7 +104,6 @@ const ServiceDetail = () => {
         {showFilters && (
           <div className="bg-gray-50 rounded-lg p-3 mb-4 animate-fade-in">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="bg-white">Rating 4.5+</Badge>
               <Badge variant="outline" className="bg-white">Within 5km</Badge>
               <Badge variant="outline" className="bg-white">Available Today</Badge>
               <Badge variant="outline" className="bg-white">Price: Low to High</Badge>
@@ -120,61 +115,67 @@ const ServiceDetail = () => {
         )}
         
         {/* Service Provider List */}
-        <div className="space-y-4">
-          {providers.map((provider) => (
-            <div 
-              key={provider.id} 
-              className="bg-white rounded-xl p-4 border border-gray-100 soft-shadow animate-slide-up"
-              onClick={() => navigate(`/workers/${provider.id}`)}
-            >
-              <div className="flex mb-3">
-                <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden mr-4">
-                  <img 
-                    src={provider.image} 
-                    alt={provider.name}
-                    className="w-full h-full object-cover" 
-                  />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold">{provider.name}</h3>
-                  <p className="text-sm text-gray-500">{serviceName} Expert • {provider.experience}</p>
-                  <div className="flex items-center mt-1">
-                    <Star size={14} className="text-yellow-500 fill-yellow-500" />
-                    <span className="text-sm font-medium ml-1">{provider.rating}</span>
-                    <span className="text-xs text-gray-500 ml-1">({provider.reviews} reviews)</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="border-t border-gray-100 pt-3">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm font-medium">{provider.price}</p>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <MapPin size={12} className="mr-1" />
-                      {provider.distance} away
+        {loading ? (
+          <div className="flex justify-center p-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-blue border-t-transparent"></div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {providers.length > 0 ? (
+              providers.map((provider) => (
+                <div 
+                  key={provider.id} 
+                  className="bg-white rounded-xl p-4 border border-gray-100 soft-shadow animate-slide-up"
+                  onClick={() => navigate(`/workers/${provider.id}`)}
+                >
+                  <div className="flex mb-3">
+                    <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden mr-4">
+                      <img 
+                        src={provider.profile_image_url || '/placeholder.svg'} 
+                        alt={provider.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '/placeholder.svg';
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{provider.name}</h3>
+                      <p className="text-sm text-gray-500">{serviceName} Expert • {provider.experience}</p>
+                      <div className="flex items-center mt-1">
+                        <MapPin size={12} className="text-gray-500 mr-1" />
+                        <span className="text-xs text-gray-500">{provider.city}</span>
+                      </div>
                     </div>
                   </div>
-                  <Button className="bg-brand-orange hover:bg-brand-orange/90 flex items-center">
-                    <Phone size={14} className="mr-2" />
-                    Call
-                  </Button>
+                  
+                  <div className="border-t border-gray-100 pt-3">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium">{provider.price_range}</p>
+                      </div>
+                      <Button className="bg-brand-orange hover:bg-brand-orange/90 flex items-center">
+                        <Phone size={14} className="mr-2" />
+                        Call
+                      </Button>
+                    </div>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No providers found for this service in your area.</p>
+                <Button 
+                  variant="link" 
+                  className="text-brand-blue"
+                  onClick={() => navigate('/services')}
+                >
+                  Browse other services
+                </Button>
               </div>
-            </div>
-          ))}
-        </div>
-        
-        {providers.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-500">No providers found for this service in your area.</p>
-            <Button 
-              variant="link" 
-              className="text-brand-blue"
-              onClick={() => navigate('/services')}
-            >
-              Browse other services
-            </Button>
+            )}
           </div>
         )}
       </div>

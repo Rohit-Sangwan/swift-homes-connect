@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowRight, Star } from 'lucide-react';
+import { Search, ArrowRight, Star, MapPin } from 'lucide-react';
 import PageContainer from '@/components/PageContainer';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 const serviceCategories = [
   { id: 'plumbing', name: 'Plumbing', icon: '🔧', color: 'bg-blue-100' },
@@ -16,35 +17,50 @@ const serviceCategories = [
   { id: 'more', name: 'More', icon: '➕', color: 'bg-gray-100' },
 ];
 
-const featuredWorkers = [
-  {
-    id: '1',
-    name: 'John Smith',
-    service: 'Plumbing',
-    rating: 4.8,
-    reviews: 124,
-    image: '/placeholder.svg',
-  },
-  {
-    id: '2',
-    name: 'Maria Garcia',
-    service: 'Cleaning',
-    rating: 4.9,
-    reviews: 87,
-    image: '/placeholder.svg',
-  },
-  {
-    id: '3',
-    name: 'David Lee',
-    service: 'Electrical',
-    rating: 4.7,
-    reviews: 56,
-    image: '/placeholder.svg',
-  }
-];
+interface Provider {
+  id: string;
+  name: string;
+  service_category: string;
+  profile_image_url: string | null;
+  city: string;
+  experience: string;
+}
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const [featuredWorkers, setFeaturedWorkers] = useState<Provider[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    fetchApprovedProviders();
+  }, []);
+  
+  const fetchApprovedProviders = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('service_providers')
+        .select('id, name, service_category, profile_image_url, city, experience')
+        .eq('status', 'approved')
+        .limit(3);
+        
+      if (error) {
+        console.error('Error fetching providers:', error);
+      } else if (data) {
+        setFeaturedWorkers(data);
+      }
+    } catch (error) {
+      console.error('Error in fetching providers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Helper to get category name from id
+  const getCategoryName = (categoryId: string) => {
+    const category = serviceCategories.find(cat => cat.id === categoryId);
+    return category ? category.name : categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
+  };
   
   return (
     <PageContainer>
@@ -89,31 +105,47 @@ const HomePage = () => {
         </div>
         
         <div className="space-y-4 mb-8">
-          {featuredWorkers.map(worker => (
-            <div 
-              key={worker.id} 
-              className="bg-white rounded-xl p-4 flex items-center card-shadow animate-fade-in"
-              onClick={() => navigate(`/workers/${worker.id}`)}
-            >
-              <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden mr-4">
-                <img 
-                  src={worker.image} 
-                  alt={worker.name}
-                  className="w-full h-full object-cover" 
-                />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-medium">{worker.name}</h3>
-                <p className="text-sm text-gray-500">{worker.service}</p>
-                <div className="flex items-center mt-1">
-                  <Star size={14} className="text-yellow-500 fill-yellow-500" />
-                  <span className="text-sm font-medium ml-1">{worker.rating}</span>
-                  <span className="text-xs text-gray-500 ml-1">({worker.reviews} reviews)</span>
-                </div>
-              </div>
-              <ArrowRight size={18} className="text-gray-400" />
+          {loading ? (
+            <div className="flex justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-blue border-t-transparent"></div>
             </div>
-          ))}
+          ) : featuredWorkers.length > 0 ? (
+            featuredWorkers.map(worker => (
+              <div 
+                key={worker.id} 
+                className="bg-white rounded-xl p-4 flex items-center card-shadow animate-fade-in"
+                onClick={() => navigate(`/workers/${worker.id}`)}
+              >
+                <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden mr-4">
+                  <img 
+                    src={worker.profile_image_url || '/placeholder.svg'} 
+                    alt={worker.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = '/placeholder.svg';
+                    }}
+                  />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium">{worker.name}</h3>
+                  <p className="text-sm text-gray-500">{getCategoryName(worker.service_category)}</p>
+                  <div className="flex items-center mt-1">
+                    <MapPin size={12} className="text-gray-500 mr-1" />
+                    <span className="text-xs text-gray-500">{worker.city}</span>
+                    <span className="mx-1 text-xs text-gray-400">•</span>
+                    <span className="text-xs text-gray-500">{worker.experience}</span>
+                  </div>
+                </div>
+                <ArrowRight size={18} className="text-gray-400" />
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-4 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No service providers available yet</p>
+            </div>
+          )}
         </div>
         
         {/* Quick Actions */}
