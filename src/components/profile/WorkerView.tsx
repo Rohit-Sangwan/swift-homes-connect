@@ -82,9 +82,9 @@ const WorkerView: React.FC = () => {
             Your service provider application has been approved! You can now start receiving service requests.
             <Button 
               className="mt-2 bg-green-600 hover:bg-green-700"
-              onClick={() => navigate('/profile/provider-dashboard')}
+              onClick={() => navigate(`/workers/${localStorage.getItem('providerId')}`)}
             >
-              Go to Provider Dashboard
+              View My Profile
             </Button>
           </AlertDescription>
         </Alert>

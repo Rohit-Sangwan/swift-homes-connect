@@ -71,7 +71,7 @@ const WorkerProfile = () => {
           return;
         }
         
-        // Fetch worker data
+        // Fetch worker data - no authentication required
         const { data: workerData, error: workerError } = await supabase
           .from('service_providers')
           .select('*')
@@ -84,7 +84,7 @@ const WorkerProfile = () => {
           return;
         }
         
-        // Fetch reviews for this worker
+        // Fetch reviews for this worker - no authentication required
         const { data: reviewsData, error: reviewsError } = await supabase
           .from('reviews')
           .select('*')
@@ -197,7 +197,7 @@ const WorkerProfile = () => {
                 target.src = '/placeholder.svg';
               }}
             />
-            <AvatarFallback>{worker.name.substring(0, 2)}</AvatarFallback>
+            <AvatarFallback>{worker.name.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
         </div>
       </div>

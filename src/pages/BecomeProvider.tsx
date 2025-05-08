@@ -17,19 +17,6 @@ import { Upload, Camera, ArrowRight, Check } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-const serviceCategories = [
-  { id: 'plumbing', name: 'Plumbing' },
-  { id: 'electrical', name: 'Electrical' },
-  { id: 'cleaning', name: 'Cleaning' },
-  { id: 'painting', name: 'Painting' },
-  { id: 'carpentry', name: 'Carpentry' },
-  { id: 'gardening', name: 'Gardening' },
-  { id: 'appliances', name: 'Appliances' },
-  { id: 'roofing', name: 'Roofing' },
-  { id: 'hvac', name: 'HVAC' },
-  { id: 'flooring', name: 'Flooring' },
-];
-
 const BecomeProvider = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,6 +24,8 @@ const BecomeProvider = () => {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [idProofImage, setIdProofImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serviceCategories, setServiceCategories] = useState<{id: string, name: string}[]>([]);
+  const [userData, setUserData] = useState<any>(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -50,20 +39,62 @@ const BecomeProvider = () => {
   });
   
   useEffect(() => {
-    // Check if user is authenticated
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
+    // Check if user is authenticated and fetch categories
+    const initialization = async () => {
+      try {
+        // Check authentication
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          toast({
+            title: "Authentication Required",
+            description: "Please log in to continue",
+            variant: "destructive",
+          });
+          navigate('/auth');
+          return;
+        }
+        
+        // Store user data
+        setUserData(data.session.user);
+        
+        // Fetch service categories from database
+        const { data: categoriesData, error } = await supabase
+          .from('service_categories')
+          .select('*')
+          .order('name');
+          
+        if (error) {
+          throw error;
+        }
+        
+        if (categoriesData && categoriesData.length > 0) {
+          setServiceCategories(categoriesData);
+        } else {
+          // Fallback if no categories in database
+          setServiceCategories([
+            { id: 'plumbing', name: 'Plumbing' },
+            { id: 'electrical', name: 'Electrical' },
+            { id: 'cleaning', name: 'Cleaning' },
+            { id: 'painting', name: 'Painting' },
+            { id: 'carpentry', name: 'Carpentry' },
+            { id: 'gardening', name: 'Gardening' },
+            { id: 'appliances', name: 'Appliances' },
+            { id: 'roofing', name: 'Roofing' },
+            { id: 'hvac', name: 'HVAC' },
+            { id: 'flooring', name: 'Flooring' },
+          ]);
+        }
+      } catch (error) {
+        console.error("Error during initialization:", error);
         toast({
-          title: "Authentication Required",
-          description: "Please log in to continue",
+          title: "Error",
+          description: "Failed to load data. Please try again later.",
           variant: "destructive",
         });
-        navigate('/auth');
       }
     };
     
-    checkAuth();
+    initialization();
   }, [navigate, toast]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -106,8 +137,12 @@ const BecomeProvider = () => {
   // Function to upload image to Supabase Storage
   const uploadImage = async (imagePath: string, imageData: string): Promise<string | null> => {
     try {
+      if (!imageData) return null;
+      
       // Remove the data URL prefix to get just the base64 data
       const base64Data = imageData.split(',')[1];
+      if (!base64Data) return null;
+      
       const byteCharacters = atob(base64Data);
       const byteNumbers = new Array(byteCharacters.length);
       
@@ -173,10 +208,43 @@ const BecomeProvider = () => {
       
       if (profileImage) {
         profileImageUrl = await uploadImage('profile.jpg', profileImage);
+        if (!profileImageUrl) {
+          toast({
+            title: "Upload Error",
+            description: "Failed to upload profile image. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
       
       if (idProofImage) {
         idProofUrl = await uploadImage('id_proof.jpg', idProofImage);
+        if (!idProofUrl) {
+          toast({
+            title: "Upload Error",
+            description: "Failed to upload ID proof. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+      
+      // Check if user already has a provider profile
+      const { data: existingProvider } = await supabase
+        .from('service_providers')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+        
+      if (existingProvider) {
+        toast({
+          title: "Profile Exists",
+          description: "You already have a service provider profile.",
+          variant: "destructive",
+        });
+        navigate('/profile');
+        return;
       }
       
       // Insert provider data into Supabase
@@ -239,6 +307,18 @@ const BecomeProvider = () => {
     setActiveStep(prev => prev - 1);
     window.scrollTo(0, 0);
   };
+
+  useEffect(() => {
+    // Pre-fill form with user data if available
+    if (userData) {
+      const userMetadata = userData.user_metadata || {};
+      setFormData(prev => ({
+        ...prev,
+        name: userMetadata.full_name || userData.user_metadata?.name || '',
+        phone: userMetadata.phone || '',
+      }));
+    }
+  }, [userData]);
   
   return (
     <PageContainer title="Become a Provider" showBack>
@@ -313,6 +393,9 @@ const BecomeProvider = () => {
                   value={formData.phone}
                   onChange={handleInputChange}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  This number will be used for service requests
+                </p>
               </div>
               
               <div>

@@ -2,24 +2,20 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import ServiceProviderTable from '@/components/admin/ServiceProviderTable';
+import CategoryManager from '@/components/admin/CategoryManager';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import CategoryManager from '@/components/admin/CategoryManager';
 
-const AdminPage = () => {
+const AdminCategoryPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<string>('applications');
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
-  
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     checkAdminStatus();
   }, []);
-  
+
   const checkAdminStatus = async () => {
     try {
       setLoading(true);
@@ -28,17 +24,10 @@ const AdminPage = () => {
       if (data.session) {
         const { user } = data.session;
         
-        // Check if user is admin (by checking metadata or specific email)
+        // Check if user is the admin by checking both metadata and email
         if (user?.app_metadata?.role === 'admin' || 
             user?.email?.toLowerCase() === 'nullcoder404official@gmail.com') {
           setIsAdmin(true);
-          
-          // Ensure admin metadata is set
-          if (user?.app_metadata?.role !== 'admin') {
-            await supabase.auth.updateUser({
-              data: { role: 'admin' }
-            });
-          }
         } else {
           // Not an admin, redirect to home
           navigate('/');
@@ -69,45 +58,28 @@ const AdminPage = () => {
       setLoading(false);
     }
   };
-  
+
   if (loading) {
     return (
-      <PageContainer title="Admin Dashboard">
+      <PageContainer title="Admin - Categories" showBack>
         <div className="flex justify-center items-center h-64">
-          <p>Loading...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-blue border-t-transparent"></div>
         </div>
       </PageContainer>
     );
   }
-  
+
   if (!isAdmin) {
     return null; // Will redirect in checkAdminStatus
   }
-  
+
   return (
-    <PageContainer title="Admin Dashboard">
+    <PageContainer title="Admin - Categories" showBack backPath="/admin">
       <div className="p-4">
-        <Tabs 
-          value={activeTab} 
-          onValueChange={setActiveTab} 
-          className="mb-6"
-        >
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="applications">Applications</TabsTrigger>
-            <TabsTrigger value="categories">Categories</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="applications" className="animate-fade-in">
-            <ServiceProviderTable />
-          </TabsContent>
-          
-          <TabsContent value="categories" className="animate-fade-in">
-            <CategoryManager />
-          </TabsContent>
-        </Tabs>
+        <CategoryManager />
       </div>
     </PageContainer>
   );
 };
 
-export default AdminPage;
+export default AdminCategoryPage;
