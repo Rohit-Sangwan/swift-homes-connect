@@ -13,19 +13,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Camera, ArrowRight, Check } from 'lucide-react';
+import { Upload, Camera, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Category } from '@/types/database';
 
 const BecomeProvider = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [activeStep, setActiveStep] = useState(1);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [idProofImage, setIdProofImage] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+  const [idProofImage, setIdProofImage] = useState<File | null>(null);
+  const [idProofImagePreview, setIdProofImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [serviceCategories, setServiceCategories] = useState<{id: string, name: string}[]>([]);
+  const [serviceCategories, setServiceCategories] = useState<Category[]>([]);
   const [userData, setUserData] = useState<any>(null);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -58,6 +62,7 @@ const BecomeProvider = () => {
         setUserData(data.session.user);
         
         // Fetch service categories from database
+        setLoadingCategories(true);
         const { data: categoriesData, error } = await supabase
           .from('service_categories')
           .select('*')
@@ -69,21 +74,8 @@ const BecomeProvider = () => {
         
         if (categoriesData && categoriesData.length > 0) {
           setServiceCategories(categoriesData);
-        } else {
-          // Fallback if no categories in database
-          setServiceCategories([
-            { id: 'plumbing', name: 'Plumbing' },
-            { id: 'electrical', name: 'Electrical' },
-            { id: 'cleaning', name: 'Cleaning' },
-            { id: 'painting', name: 'Painting' },
-            { id: 'carpentry', name: 'Carpentry' },
-            { id: 'gardening', name: 'Gardening' },
-            { id: 'appliances', name: 'Appliances' },
-            { id: 'roofing', name: 'Roofing' },
-            { id: 'hvac', name: 'HVAC' },
-            { id: 'flooring', name: 'Flooring' },
-          ]);
         }
+        setLoadingCategories(false);
       } catch (error) {
         console.error("Error during initialization:", error);
         toast({
@@ -91,6 +83,7 @@ const BecomeProvider = () => {
           description: "Failed to load data. Please try again later.",
           variant: "destructive",
         });
+        setLoadingCategories(false);
       }
     };
     
@@ -112,47 +105,39 @@ const BecomeProvider = () => {
     }));
   };
   
-  const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setProfileImage(file);
+      
+      // Create preview
       const reader = new FileReader();
-      reader.onload = (event) => {
-        setProfileImage(event.target?.result as string);
+      reader.onload = (e) => {
+        setProfileImagePreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
   
-  const handleIdProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIdProofUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIdProofImage(file);
+      
+      // Create preview
       const reader = new FileReader();
-      reader.onload = (event) => {
-        setIdProofImage(event.target?.result as string);
+      reader.onload = (e) => {
+        setIdProofImagePreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
   
   // Function to upload image to Supabase Storage
-  const uploadImage = async (imagePath: string, imageData: string): Promise<string | null> => {
+  const uploadImage = async (file: File, fileName: string): Promise<string | null> => {
     try {
-      if (!imageData) return null;
-      
-      // Remove the data URL prefix to get just the base64 data
-      const base64Data = imageData.split(',')[1];
-      if (!base64Data) return null;
-      
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'image/jpeg' });
-      
+      if (!file) return null;
+
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user.id;
       
@@ -161,13 +146,14 @@ const BecomeProvider = () => {
       }
       
       // Create a unique file path
-      const fileName = `${userId}_${Date.now()}_${imagePath}`;
-      const filePath = `providers/${fileName}`;
+      const fileExtension = file.name.split('.').pop();
+      const uniqueFileName = `${userId}_${Date.now()}_${fileName}.${fileExtension}`;
+      const filePath = `${uniqueFileName}`;
       
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from('provider_images')
-        .upload(filePath, blob, { contentType: 'image/jpeg' });
+        .upload(filePath, file, { cacheControl: '3600' });
       
       if (error) {
         console.error('Error uploading image:', error);
@@ -207,25 +193,27 @@ const BecomeProvider = () => {
       let idProofUrl = null;
       
       if (profileImage) {
-        profileImageUrl = await uploadImage('profile.jpg', profileImage);
+        profileImageUrl = await uploadImage(profileImage, 'profile');
         if (!profileImageUrl) {
           toast({
             title: "Upload Error",
             description: "Failed to upload profile image. Please try again.",
             variant: "destructive",
           });
+          setIsSubmitting(false);
           return;
         }
       }
       
       if (idProofImage) {
-        idProofUrl = await uploadImage('id_proof.jpg', idProofImage);
+        idProofUrl = await uploadImage(idProofImage, 'id_proof');
         if (!idProofUrl) {
           toast({
             title: "Upload Error",
             description: "Failed to upload ID proof. Please try again.",
             variant: "destructive",
           });
+          setIsSubmitting(false);
           return;
         }
       }
@@ -314,7 +302,7 @@ const BecomeProvider = () => {
       const userMetadata = userData.user_metadata || {};
       setFormData(prev => ({
         ...prev,
-        name: userMetadata.full_name || userData.user_metadata?.name || '',
+        name: userMetadata.full_name || userMetadata.name || '',
         phone: userMetadata.phone || '',
       }));
     }
@@ -349,8 +337,8 @@ const BecomeProvider = () => {
               <div 
                 className="w-24 h-24 rounded-full bg-gray-100 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 mb-2 overflow-hidden"
               >
-                {profileImage ? (
-                  <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                {profileImagePreview ? (
+                  <img src={profileImagePreview} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                   <>
                     <Camera size={24} className="text-gray-400 mb-1" />
@@ -442,21 +430,28 @@ const BecomeProvider = () => {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="serviceCategory">Service Category</Label>
-                <Select
-                  value={formData.serviceCategory}
-                  onValueChange={(value) => handleSelectChange('serviceCategory', value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a service category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {serviceCategories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {loadingCategories ? (
+                  <div className="flex items-center mt-2">
+                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                    <span className="text-sm text-gray-500">Loading categories...</span>
+                  </div>
+                ) : (
+                  <Select
+                    value={formData.serviceCategory}
+                    onValueChange={(value) => handleSelectChange('serviceCategory', value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a service category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {serviceCategories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               
               <div>
@@ -539,10 +534,10 @@ const BecomeProvider = () => {
             
             {/* ID Proof Upload */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              {idProofImage ? (
+              {idProofImagePreview ? (
                 <div>
                   <div className="relative w-full h-40 mb-3">
-                    <img src={idProofImage} alt="ID Proof" className="w-full h-full object-contain" />
+                    <img src={idProofImagePreview} alt="ID Proof" className="w-full h-full object-contain" />
                     <div className="absolute top-2 right-2 bg-green-100 text-green-600 rounded-full p-1">
                       <Check size={16} />
                     </div>
@@ -591,7 +586,12 @@ const BecomeProvider = () => {
                 onClick={handleSubmit}
                 disabled={!idProofImage || isSubmitting}
               >
-                {isSubmitting ? "Submitting..." : "Submit Profile"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                    Submitting...
+                  </>
+                ) : "Submit Profile"}
               </Button>
             </div>
           </div>

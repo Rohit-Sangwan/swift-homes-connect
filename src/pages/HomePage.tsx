@@ -5,17 +5,7 @@ import { Search, ArrowRight, Star, MapPin } from 'lucide-react';
 import PageContainer from '@/components/PageContainer';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-
-const serviceCategories = [
-  { id: 'plumbing', name: 'Plumbing', icon: '🔧', color: 'bg-blue-100' },
-  { id: 'electrical', name: 'Electrical', icon: '⚡', color: 'bg-yellow-100' },
-  { id: 'cleaning', name: 'Cleaning', icon: '🧹', color: 'bg-green-100' },
-  { id: 'painting', name: 'Painting', icon: '🎨', color: 'bg-purple-100' },
-  { id: 'carpentry', name: 'Carpentry', icon: '🪚', color: 'bg-orange-100' },
-  { id: 'gardening', name: 'Gardening', icon: '🌱', color: 'bg-lime-100' },
-  { id: 'appliances', name: 'Appliances', icon: '🔌', color: 'bg-red-100' },
-  { id: 'more', name: 'More', icon: '➕', color: 'bg-gray-100' },
-];
+import { Category } from '@/types/database';
 
 interface Provider {
   id: string;
@@ -28,11 +18,14 @@ interface Provider {
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const [serviceCategories, setServiceCategories] = useState<Category[]>([]);
   const [featuredWorkers, setFeaturedWorkers] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   
   useEffect(() => {
     fetchApprovedProviders();
+    fetchCategories();
   }, []);
   
   const fetchApprovedProviders = async () => {
@@ -56,10 +49,77 @@ const HomePage = () => {
     }
   };
   
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const { data, error } = await supabase
+        .from('service_categories')
+        .select('*')
+        .order('name', { ascending: true })
+        .limit(8); // Limit to 8 categories for the grid display
+        
+      if (error) {
+        console.error('Error fetching categories:', error);
+        return;
+      }
+      
+      if (data) {
+        // Map the data to include icons and colors
+        const mappedCategories = data.map(category => ({
+          ...category,
+          icon: getCategoryIcon(category.slug),
+          color: getCategoryColor(category.slug)
+        }));
+        
+        setServiceCategories(mappedCategories);
+      }
+    } catch (error) {
+      console.error('Error in fetching categories:', error);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+  
   // Helper to get category name from id
   const getCategoryName = (categoryId: string) => {
     const category = serviceCategories.find(cat => cat.id === categoryId);
     return category ? category.name : categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
+  };
+  
+  // Helper to get category icon
+  const getCategoryIcon = (slug: string) => {
+    const iconMap: { [key: string]: string } = {
+      plumbing: '🔧',
+      electrical: '⚡',
+      cleaning: '🧹',
+      painting: '🎨',
+      carpentry: '🪚',
+      gardening: '🌱',
+      appliances: '🔌',
+      roofing: '🏠',
+      hvac: '❄️',
+      flooring: '🧱',
+    };
+    
+    return iconMap[slug] || '🛠️'; // Default icon for unknown categories
+  };
+  
+  // Helper to get category color
+  const getCategoryColor = (slug: string) => {
+    const colorMap: { [key: string]: string } = {
+      plumbing: 'bg-blue-100',
+      electrical: 'bg-yellow-100',
+      cleaning: 'bg-green-100',
+      painting: 'bg-purple-100',
+      carpentry: 'bg-orange-100',
+      gardening: 'bg-lime-100',
+      appliances: 'bg-red-100',
+      roofing: 'bg-sky-100',
+      hvac: 'bg-cyan-100',
+      flooring: 'bg-amber-100',
+    };
+    
+    return colorMap[slug] || 'bg-gray-100'; // Default color for unknown categories
   };
   
   return (
@@ -76,20 +136,26 @@ const HomePage = () => {
         
         {/* Categories */}
         <h2 className="text-lg font-semibold mb-4">Categories</h2>
-        <div className="grid grid-cols-4 gap-3 mb-8">
-          {serviceCategories.map((category) => (
-            <div 
-              key={category.id} 
-              className="flex flex-col items-center cursor-pointer"
-              onClick={() => navigate(`/services/${category.id}`)}
-            >
-              <div className={`w-14 h-14 ${category.color} rounded-full flex items-center justify-center mb-2 text-xl`}>
-                {category.icon}
+        {categoriesLoading ? (
+          <div className="flex justify-center p-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-blue border-t-transparent"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-3 mb-8">
+            {serviceCategories.map((category) => (
+              <div 
+                key={category.id} 
+                className="flex flex-col items-center cursor-pointer"
+                onClick={() => navigate(`/services/${category.slug}`)}
+              >
+                <div className={`w-14 h-14 ${category.color} rounded-full flex items-center justify-center mb-2 text-xl`}>
+                  {category.icon}
+                </div>
+                <span className="text-xs text-center">{category.name}</span>
               </div>
-              <span className="text-xs text-center">{category.name}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
         
         {/* Top Rated Professionals */}
         <div className="flex items-center justify-between mb-4">
@@ -117,16 +183,22 @@ const HomePage = () => {
                 onClick={() => navigate(`/workers/${worker.id}`)}
               >
                 <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden mr-4">
-                  <img 
-                    src={worker.profile_image_url || '/placeholder.svg'} 
-                    alt={worker.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.onerror = null;
-                      target.src = '/placeholder.svg';
-                    }}
-                  />
+                  {worker.profile_image_url ? (
+                    <img 
+                      src={worker.profile_image_url}
+                      alt={worker.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = '/placeholder.svg';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                      <span className="text-gray-500 text-xl">{worker.name.charAt(0)}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1">
                   <h3 className="font-medium">{worker.name}</h3>

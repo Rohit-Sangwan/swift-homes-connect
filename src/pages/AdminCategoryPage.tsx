@@ -74,7 +74,7 @@ const AdminCategoryPage = () => {
   }
 
   return (
-    <PageContainer title="Admin - Categories" showBack backPath="/admin">
+    <PageContainer title="Admin - Categories" showBack>
       <div className="p-4">
         <CategoryManager />
       </div>
