@@ -1,4 +1,3 @@
-
 import React from 'react';
 import PageContainer from '@/components/PageContainer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,28 +7,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/components/ui/use-toast';
 import BottomNavigation from '@/components/BottomNavigation';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
+import { Moon, Sun, Languages, TextSize, Bell, Shield } from 'lucide-react';
 
 const AppSettingsPage = () => {
   const { toast } = useToast();
-  const [darkMode, setDarkMode] = React.useState(false);
-  const [notifications, setNotifications] = React.useState(true);
-  const [language, setLanguage] = React.useState('en');
-  const [fontSize, setFontSize] = React.useState(16);
+  const { darkMode, fontSize, language, setDarkMode, setFontSize, setLanguage } = useSystemSettings();
   
   const handleSettingChange = (setting: string, value: any) => {
-    // In a real app, you would save these settings to local storage or a user preferences table
+    // Apply settings changes based on the SystemSettingsContext
     switch (setting) {
       case 'darkMode':
         setDarkMode(value);
         break;
-      case 'notifications':
-        setNotifications(value);
+      case 'fontSize':
+        setFontSize(value);
         break;
       case 'language':
         setLanguage(value);
-        break;
-      case 'fontSize':
-        setFontSize(value);
         break;
     }
     
@@ -38,19 +33,50 @@ const AppSettingsPage = () => {
       description: "Your preferences have been saved.",
     });
   };
+
+  // Map font size string to slider value
+  const fontSizeMap = {
+    'small': 12,
+    'medium': 16,
+    'large': 20
+  };
+  
+  const fontSizeToSlider = (size: string) => {
+    return fontSizeMap[size as keyof typeof fontSizeMap] || 16;
+  };
+  
+  const sliderToFontSize = (value: number) => {
+    if (value <= 13) return 'small';
+    if (value <= 17) return 'medium';
+    return 'large';
+  };
   
   return (
     <PageContainer title="App Settings" showBack>
       <div className="p-4">
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Display</CardTitle>
+            <CardTitle className="flex items-center">
+              <div className="p-2 bg-brand-blue/10 rounded-full mr-3">
+                <Sun size={16} className="text-brand-blue" />
+              </div>
+              Display
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Dark Mode</p>
-                <p className="text-sm text-gray-500">Use dark theme</p>
+              <div className="flex items-center">
+                <div className="p-2 rounded-full mr-3">
+                  {darkMode ? (
+                    <Moon size={18} className="text-indigo-400" />
+                  ) : (
+                    <Sun size={18} className="text-amber-500" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium">Dark Mode</p>
+                  <p className="text-sm text-gray-500">Use dark theme</p>
+                </div>
               </div>
               <Switch 
                 checked={darkMode} 
@@ -59,15 +85,20 @@ const AppSettingsPage = () => {
             </div>
             
             <div className="space-y-2">
-              <Label>Font Size</Label>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                <div className="p-2 rounded-full mr-3">
+                  <TextSize size={18} className="text-brand-blue" />
+                </div>
+                <Label>Font Size</Label>
+              </div>
+              <div className="flex items-center space-x-4 px-4">
                 <span className="text-sm">A</span>
                 <Slider 
-                  defaultValue={[fontSize]} 
+                  defaultValue={[fontSizeToSlider(fontSize)]} 
                   min={12} 
                   max={20} 
-                  step={1}
-                  onValueChange={(value) => handleSettingChange('fontSize', value[0])}
+                  step={4}
+                  onValueChange={(value) => handleSettingChange('fontSize', sliderToFontSize(value[0]))}
                   className="flex-1" 
                 />
                 <span className="text-lg">A</span>
@@ -75,12 +106,17 @@ const AppSettingsPage = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="language">Language</Label>
+              <div className="flex items-center">
+                <div className="p-2 rounded-full mr-3">
+                  <Languages size={18} className="text-brand-blue" />
+                </div>
+                <Label htmlFor="language">Language</Label>
+              </div>
               <Select 
                 value={language} 
                 onValueChange={(value) => handleSettingChange('language', value)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select language" />
                 </SelectTrigger>
                 <SelectContent>
@@ -98,7 +134,12 @@ const AppSettingsPage = () => {
         
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Notifications</CardTitle>
+            <CardTitle className="flex items-center">
+              <div className="p-2 bg-brand-blue/10 rounded-full mr-3">
+                <Bell size={16} className="text-brand-blue" />
+              </div>
+              Notifications
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
@@ -106,10 +147,7 @@ const AppSettingsPage = () => {
                 <p className="font-medium">Push Notifications</p>
                 <p className="text-sm text-gray-500">Receive push notifications</p>
               </div>
-              <Switch 
-                checked={notifications} 
-                onCheckedChange={(checked) => handleSettingChange('notifications', checked)} 
-              />
+              <Switch defaultChecked />
             </div>
             
             <div className="flex items-center justify-between">
@@ -132,7 +170,12 @@ const AppSettingsPage = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle>Privacy</CardTitle>
+            <CardTitle className="flex items-center">
+              <div className="p-2 bg-brand-blue/10 rounded-full mr-3">
+                <Shield size={16} className="text-brand-blue" />
+              </div>
+              Privacy
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">

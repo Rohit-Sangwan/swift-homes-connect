@@ -1,164 +1,168 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Clipboard, ChevronRight, Star, Settings } from 'lucide-react';
 
-const WorkerView: React.FC = () => {
+const WorkerView = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [providerStatus, setProviderStatus] = useState<string | null>(null);
+  const [providerInfo, setProviderInfo] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   useEffect(() => {
-    const checkProviderStatus = async () => {
-      try {
-        setLoading(true);
-        
-        // Get current user
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user.id;
-        
-        if (!userId) {
-          setLoading(false);
-          return;
-        }
-        
-        // Check if user has already applied as a provider
-        const { data, error } = await supabase
-          .from('service_providers')
-          .select('status')
-          .eq('user_id', userId)
-          .single();
-          
-        if (error) {
-          if (error.code !== 'PGRST116') { // No rows found
-            console.error('Error checking provider status:', error);
-          }
-        }
-        
-        if (data) {
-          setProviderStatus(data.status);
-        }
-      } catch (error) {
-        console.error('Error in provider status check:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkProviderStatus();
+    fetchProviderStatus();
   }, []);
   
-  // Show different UI based on provider application status
-  const renderProviderContent = () => {
-    if (loading) {
-      return (
-        <div className="flex justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-blue border-t-transparent"></div>
-        </div>
-      );
-    }
-    
-    if (providerStatus === 'pending') {
-      return (
-        <Alert className="mb-6 border-amber-200 bg-amber-50">
-          <Clock className="h-5 w-5 text-amber-600" />
-          <AlertTitle className="text-amber-800">Application Under Review</AlertTitle>
-          <AlertDescription className="text-amber-700">
-            Your service provider application is currently being reviewed by our team. We'll notify you once it's approved.
-          </AlertDescription>
-        </Alert>
-      );
-    }
-    
-    if (providerStatus === 'approved') {
-      return (
-        <Alert className="mb-6 border-green-200 bg-green-50">
-          <CheckCircle className="h-5 w-5 text-green-600" />
-          <AlertTitle className="text-green-800">Application Approved</AlertTitle>
-          <AlertDescription className="text-green-700">
-            Your service provider application has been approved! You can now start receiving service requests.
-            <Button 
-              className="mt-2 bg-green-600 hover:bg-green-700"
-              onClick={() => navigate(`/workers/${localStorage.getItem('providerId')}`)}
-            >
-              View My Profile
-            </Button>
-          </AlertDescription>
-        </Alert>
-      );
-    }
-    
-    if (providerStatus === 'rejected') {
-      return (
-        <Alert className="mb-6 border-red-200 bg-red-50">
-          <XCircle className="h-5 w-5 text-red-600" />
-          <AlertTitle className="text-red-800">Application Rejected</AlertTitle>
-          <AlertDescription className="text-red-700">
-            Unfortunately, your service provider application has been rejected. Please contact support for more information.
-          </AlertDescription>
-        </Alert>
-      );
-    }
-    
-    // Default: No application yet
-    return (
-      <>
-        <div className="bg-brand-blue/10 border-2 border-brand-blue/20 rounded-xl p-4 text-center">
-          <h3 className="font-medium mb-2">Become a Service Provider</h3>
-          <p className="text-sm text-gray-600 mb-3">
-            List your services and start getting job requests from customers in your area.
-          </p>
-          <Button 
-            className="bg-brand-blue hover:bg-brand-blue/90 rounded-full px-6"
-            onClick={() => navigate('/become-provider')}
-          >
-            Register as Provider
-          </Button>
-        </div>
+  const fetchProviderStatus = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) return;
+      
+      const { data: providerData, error } = await supabase
+        .from('service_providers')
+        .select('*')
+        .eq('user_id', sessionData.session.user.id)
+        .single();
         
-        <div className="bg-white rounded-xl p-4 card-shadow">
-          <h3 className="font-medium mb-3">Benefits of being a Service Provider</h3>
-          <div className="space-y-3">
-            <div className="flex">
-              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600">✓</div>
-              <div>
-                <h4 className="text-sm font-medium">Find Local Customers</h4>
-                <p className="text-xs text-gray-500">Connect with customers in your area</p>
-              </div>
-            </div>
-            <div className="flex">
-              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600">✓</div>
-              <div>
-                <h4 className="text-sm font-medium">Direct Communication</h4>
-                <p className="text-xs text-gray-500">Talk directly with customers via phone</p>
-              </div>
-            </div>
-            <div className="flex">
-              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600">✓</div>
-              <div>
-                <h4 className="text-sm font-medium">Build Reputation</h4>
-                <p className="text-xs text-gray-500">Earn reviews and ratings for your work</p>
-              </div>
-            </div>
-            <div className="flex">
-              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3 text-green-600">✓</div>
-              <div>
-                <h4 className="text-sm font-medium">Free Registration</h4>
-                <p className="text-xs text-gray-500">No fees to list your services</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </>
-    );
+      if (!error && providerData) {
+        setProviderInfo(providerData);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching provider status:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
+  if (isLoading) {
+    return (
+      <div className="text-center py-10">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-blue border-t-transparent mx-auto"></div>
+        <p className="text-gray-500 mt-2">Loading...</p>
+      </div>
+    );
+  }
+  
+  if (providerInfo) {
+    const isApproved = providerInfo.status === 'approved';
+    
+    return (
+      <div className="space-y-4">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <div className="p-4">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="font-semibold">Provider Status</h2>
+                <Badge 
+                  variant={isApproved ? "success" : "outline"}
+                  className={
+                    isApproved 
+                      ? "bg-green-100 text-green-800 hover:bg-green-200" 
+                      : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                  }
+                >
+                  {isApproved ? 'Approved' : 'Pending Review'}
+                </Badge>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-4">
+                {isApproved 
+                  ? 'Your service provider account has been approved. You can now manage your services and bookings.' 
+                  : 'Your application is still under review. We will notify you once it is approved.'}
+              </p>
+              
+              {isApproved && (
+                <Button
+                  className="w-full bg-brand-blue hover:bg-brand-blue/90"
+                  onClick={() => navigate('/worker-dashboard')}
+                >
+                  Go to Worker Dashboard
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        
+        {isApproved && (
+          <div className="bg-white rounded-xl overflow-hidden card-shadow">
+            <div 
+              className="flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer"
+              onClick={() => navigate('/worker-dashboard')}
+            >
+              <Clipboard size={18} className="text-gray-500 mr-3" />
+              <span>Manage Bookings</span>
+              <ChevronRight size={18} className="text-gray-400 ml-auto" />
+            </div>
+            <div 
+              className="flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer"
+              onClick={() => navigate('/worker-dashboard')}
+            >
+              <Star size={18} className="text-gray-500 mr-3" />
+              <span>View Reviews</span>
+              <ChevronRight size={18} className="text-gray-400 ml-auto" />
+            </div>
+            <div 
+              className="flex items-center px-4 py-3 cursor-pointer"
+              onClick={() => navigate('/worker-dashboard')}
+            >
+              <Settings size={18} className="text-gray-500 mr-3" />
+              <span>Service Settings</span>
+              <ChevronRight size={18} className="text-gray-400 ml-auto" />
+            </div>
+          </div>
+        )}
+        
+        {!isApproved && (
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-semibold mb-2">Application Tips</h3>
+              <ul className="text-sm text-gray-600 space-y-2 list-disc pl-4">
+                <li>Make sure your profile is complete with accurate information</li>
+                <li>Upload a clear professional photo</li>
+                <li>Provide a detailed description of your services</li>
+                <li>Highlight your experience and qualifications</li>
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+  
   return (
-    <div className="space-y-6">
-      {renderProviderContent()}
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-4 text-center">
+          <h2 className="font-semibold mb-2">Become a Service Provider</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Register as a service provider to offer your services on our platform.
+          </p>
+          <Button 
+            className="bg-brand-blue hover:bg-brand-blue/90"
+            onClick={() => navigate('/become-provider')}
+          >
+            Register Now
+          </Button>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardContent className="p-4">
+          <h3 className="font-semibold mb-2">Benefits of Becoming a Provider</h3>
+          <ul className="text-sm text-gray-600 space-y-2 list-disc pl-4">
+            <li>Connect with customers in your area</li>
+            <li>Flexible working hours</li>
+            <li>Build your professional reputation</li>
+            <li>Easy booking and payment management</li>
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 };

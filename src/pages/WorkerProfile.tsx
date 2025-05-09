@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PageContainer from '@/components/PageContainer';
 import { supabase } from '@/integrations/supabase/client';
+import ReviewForm from '@/components/reviews/ReviewForm';
 
 interface WorkerData {
   id: string;
@@ -62,84 +63,84 @@ const WorkerProfile = () => {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    const fetchWorkerData = async () => {
-      try {
-        setLoading(true);
-        
-        if (!workerId) {
-          console.error("No worker ID provided");
-          return;
-        }
-        
-        // Fetch worker data - no authentication required
-        const { data: workerData, error: workerError } = await supabase
-          .from('service_providers')
-          .select('*')
-          .eq('id', workerId)
-          .eq('status', 'approved')
-          .single();
-          
-        if (workerError) {
-          console.error('Error fetching worker data:', workerError);
-          return;
-        }
-        
-        // Fetch reviews for this worker - no authentication required
-        const { data: reviewsData, error: reviewsError } = await supabase
-          .from('reviews')
-          .select('*')
-          .eq('provider_id', workerId);
-          
-        if (reviewsError) {
-          console.error('Error fetching reviews:', reviewsError);
-        }
-        
-        // Calculate average rating
-        let avgRating = 0;
-        if (reviewsData && reviewsData.length > 0) {
-          avgRating = reviewsData.reduce((sum, review) => sum + review.rating, 0) / reviewsData.length;
-        }
-        
-        // Set the worker data with additional information
-        if (workerData) {
-          setWorker({
-            ...workerData,
-            rating: parseFloat(avgRating.toFixed(1)),
-            reviews: reviewsData?.length || 0,
-            profession: serviceCategories[workerData.service_category as keyof typeof serviceCategories] || 
-                      workerData.service_category.charAt(0).toUpperCase() + workerData.service_category.slice(1),
-          });
-          
-          // Format reviews data with dates
-          if (reviewsData) {
-            const formattedReviews = reviewsData.map(review => {
-              // Format the date
-              const formattedDate = review.created_at ? 
-                new Date(review.created_at).toLocaleDateString('en-US', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                }) : '';
-                
-              return {
-                ...review,
-                username: "User", // In a real app, you'd fetch the user's name
-                created_at: formattedDate
-              };
-            });
-            
-            setReviews(formattedReviews);
-          }
-        }
-      } catch (error) {
-        console.error('Error in worker profile data fetch:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchWorkerData();
   }, [workerId]);
+  
+  const fetchWorkerData = async () => {
+    try {
+      setLoading(true);
+      
+      if (!workerId) {
+        console.error("No worker ID provided");
+        return;
+      }
+      
+      // Fetch worker data - no authentication required
+      const { data: workerData, error: workerError } = await supabase
+        .from('service_providers')
+        .select('*')
+        .eq('id', workerId)
+        .eq('status', 'approved')
+        .single();
+        
+      if (workerError) {
+        console.error('Error fetching worker data:', workerError);
+        return;
+      }
+      
+      // Fetch reviews for this worker - no authentication required
+      const { data: reviewsData, error: reviewsError } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('provider_id', workerId);
+        
+      if (reviewsError) {
+        console.error('Error fetching reviews:', reviewsError);
+      }
+      
+      // Calculate average rating
+      let avgRating = 0;
+      if (reviewsData && reviewsData.length > 0) {
+        avgRating = reviewsData.reduce((sum, review) => sum + review.rating, 0) / reviewsData.length;
+      }
+      
+      // Set the worker data with additional information
+      if (workerData) {
+        setWorker({
+          ...workerData,
+          rating: parseFloat(avgRating.toFixed(1)),
+          reviews: reviewsData?.length || 0,
+          profession: serviceCategories[workerData.service_category as keyof typeof serviceCategories] || 
+                    workerData.service_category.charAt(0).toUpperCase() + workerData.service_category.slice(1),
+        });
+        
+        // Format reviews data with dates
+        if (reviewsData) {
+          const formattedReviews = reviewsData.map(review => {
+            // Format the date
+            const formattedDate = review.created_at ? 
+              new Date(review.created_at).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              }) : '';
+              
+            return {
+              ...review,
+              username: "User", // In a real app, you'd fetch the user's name
+              created_at: formattedDate
+            };
+          });
+          
+          setReviews(formattedReviews);
+        }
+      }
+    } catch (error) {
+      console.error('Error in worker profile data fetch:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   if (loading) {
     return (
@@ -269,6 +270,10 @@ const WorkerProfile = () => {
           </TabsContent>
           
           <TabsContent value="reviews" className="space-y-4">
+            <ReviewForm providerId={worker.id} onReviewSubmitted={fetchWorkerData} />
+            
+            <h3 className="font-medium mt-6 mb-2">Customer Reviews</h3>
+            
             {reviews.length > 0 ? (
               reviews.map(review => (
                 <div key={review.id} className="border rounded-lg p-3">
