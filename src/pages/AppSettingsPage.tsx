@@ -8,7 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/components/ui/use-toast';
 import BottomNavigation from '@/components/BottomNavigation';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
-import { Moon, Sun, Languages, TextSize, Bell, Shield } from 'lucide-react';
+import { Moon, Sun, Languages, Type, Bell, Shield } from 'lucide-react';
 
 const AppSettingsPage = () => {
   const { toast } = useToast();
@@ -87,7 +87,7 @@ const AppSettingsPage = () => {
             <div className="space-y-2">
               <div className="flex items-center">
                 <div className="p-2 rounded-full mr-3">
-                  <TextSize size={18} className="text-brand-blue" />
+                  <Type size={18} className="text-brand-blue" />
                 </div>
                 <Label>Font Size</Label>
               </div>

@@ -60,7 +60,7 @@ const WorkerView = () => {
               <div className="flex justify-between items-center mb-2">
                 <h2 className="font-semibold">Provider Status</h2>
                 <Badge 
-                  variant={isApproved ? "success" : "outline"}
+                  variant={isApproved ? "default" : "outline"}
                   className={
                     isApproved 
                       ? "bg-green-100 text-green-800 hover:bg-green-200" 

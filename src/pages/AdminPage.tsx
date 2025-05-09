@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
@@ -8,7 +9,7 @@ import ServiceProviderTable from '@/components/admin/ServiceProviderTable';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import CategoryManager from '@/components/admin/CategoryManager';
-import { Users, Category, Settings, BarChart, Database, UserCog } from 'lucide-react';
+import { Users, Settings, BarChart, Database, UserCog, FolderTree } from 'lucide-react';
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -135,7 +136,7 @@ const AdminPage = () => {
           
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
             <CardContent className="p-4 flex flex-col items-center justify-center">
-              <Category className="h-8 w-8 mb-2 opacity-80" />
+              <FolderTree className="h-8 w-8 mb-2 opacity-80" />
               <p className="text-2xl font-bold">{stats.categories}</p>
               <p className="text-xs uppercase tracking-wider opacity-80">Categories</p>
             </CardContent>
