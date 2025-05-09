@@ -7,9 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import BottomNavigation from '@/components/BottomNavigation';
-import { Calendar, Clock, MessageCircle, Star, Users, BarChart } from 'lucide-react';
+import { MessageCircle, Star, Users, BarChart, User, Phone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import ProfileEditor from '@/components/worker/ProfileEditor';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 interface Review {
   id: string;
@@ -39,6 +42,8 @@ const WorkerDashboardPage = () => {
     upcoming: 0,
     cancelled: 0
   });
+  const [username, setUsername] = useState<string>("");
+  const [editProfileOpen, setEditProfileOpen] = useState<boolean>(false);
 
   useEffect(() => {
     checkAuthAndFetchData();
@@ -60,6 +65,13 @@ const WorkerDashboardPage = () => {
       }
 
       const userId = session.session.user.id;
+
+      // Get user's email to display as username
+      if (session.session.user.email) {
+        const email = session.session.user.email;
+        const displayName = email.split('@')[0];
+        setUsername(displayName.charAt(0).toUpperCase() + displayName.slice(1));
+      }
 
       // Check if user is a registered service provider
       const { data: providerData, error: providerError } = await supabase
@@ -93,7 +105,11 @@ const WorkerDashboardPage = () => {
         const reviewsWithUsernames = await Promise.all(
           reviewsData.map(async (review) => {
             const { data: userData } = await supabase.auth.admin.getUserById(review.user_id);
-            const username = userData?.user?.email?.split('@')[0] || 'Anonymous User';
+            let username = 'Anonymous User';
+            if (userData?.user?.email) {
+              username = userData.user.email.split('@')[0];
+              username = username.charAt(0).toUpperCase() + username.slice(1);
+            }
             return { ...review, username };
           })
         );
@@ -137,6 +153,18 @@ const WorkerDashboardPage = () => {
     return (sum / reviews.length).toFixed(1);
   };
 
+  const handleCallButton = () => {
+    if (profile && profile.phone) {
+      window.location.href = `tel:${profile.phone}`;
+    } else {
+      toast({
+        title: "No phone number available",
+        description: "Please update your profile with a valid phone number.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <PageContainer title="Worker Dashboard" showBack>
@@ -176,9 +204,15 @@ const WorkerDashboardPage = () => {
                       </div>
                     )}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h2 className="font-medium text-lg">{profile.name}</h2>
                     <div className="text-sm text-gray-500">{profile.service_category}</div>
+                    {username && (
+                      <div className="text-sm mt-1 flex items-center">
+                        <User size={14} className="mr-1" />
+                        <span>{username}</span>
+                      </div>
+                    )}
                     <div className="flex items-center mt-1">
                       <Star size={16} className="text-yellow-500 fill-yellow-500 mr-1" />
                       <span>{getAverageRating()}</span>
@@ -186,16 +220,34 @@ const WorkerDashboardPage = () => {
                       <Badge variant="outline" className="ml-2 bg-blue-50">{profile.price_range}</Badge>
                     </div>
                   </div>
+                  <div className="flex flex-col gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setEditProfileOpen(true)}
+                      className="text-xs"
+                    >
+                      Edit Profile
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleCallButton}
+                      className="flex items-center gap-1 text-xs"
+                    >
+                      <Phone size={14} />
+                      Call
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Dashboard Tabs */}
             <Tabs defaultValue="statistics">
-              <TabsList className="grid grid-cols-3 mb-4">
+              <TabsList className="grid grid-cols-2 mb-4">
                 <TabsTrigger value="statistics">Statistics</TabsTrigger>
                 <TabsTrigger value="reviews">Reviews</TabsTrigger>
-                <TabsTrigger value="schedule">Schedule</TabsTrigger>
               </TabsList>
 
               {/* Statistics Tab */}
@@ -233,9 +285,9 @@ const WorkerDashboardPage = () => {
                   <Card>
                     <CardContent className="pt-6">
                       <div className="flex flex-col items-center">
-                        <Calendar className="h-8 w-8 mb-2 text-brand-blue" />
-                        <p className="text-sm text-gray-500">Upcoming</p>
-                        <p className="text-2xl font-bold">{stats.upcoming}</p>
+                        <Phone className="h-8 w-8 mb-2 text-brand-blue" />
+                        <p className="text-sm text-gray-500">Phone</p>
+                        <p className="text-md font-medium truncate max-w-full">{profile.phone}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -308,62 +360,26 @@ const WorkerDashboardPage = () => {
                   </div>
                 )}
               </TabsContent>
-
-              {/* Schedule Tab */}
-              <TabsContent value="schedule" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Availability</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center">
-                      <Calendar className="text-brand-blue mr-2" size={16} />
-                      <div>
-                        <p className="text-sm font-medium">Working Days</p>
-                        <p className="text-sm text-gray-500">Monday - Saturday</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="text-brand-blue mr-2" size={16} />
-                      <div>
-                        <p className="text-sm font-medium">Working Hours</p>
-                        <p className="text-sm text-gray-500">9:00 AM - 6:00 PM</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Upcoming Bookings</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {stats.upcoming > 0 ? (
-                      <div className="space-y-4">
-                        {[...Array(stats.upcoming)].map((_, index) => (
-                          <div key={index} className="border-b pb-4 last:border-0 last:pb-0">
-                            <div className="flex justify-between">
-                              <p className="font-medium">Booking #{index + 1}</p>
-                              <Badge>Upcoming</Badge>
-                            </div>
-                            <p className="text-sm text-gray-500">
-                              {format(new Date(Date.now() + (index + 1) * 24 * 60 * 60 * 1000), 'EEEE, MMMM dd, yyyy')}
-                            </p>
-                            <p className="text-sm">10:00 AM - 12:00 PM</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-6">
-                        <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500">No upcoming bookings</p>
-                        <p className="text-sm text-gray-400">Your schedule is clear</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
             </Tabs>
+            
+            {/* Profile Edit Dialog */}
+            <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogTitle>Edit Profile</DialogTitle>
+                {profile && (
+                  <ProfileEditor 
+                    providerId={profile.id}
+                    initialName={profile.name}
+                    initialPhone={profile.phone}
+                    initialImageUrl={profile.profile_image_url}
+                    onProfileUpdated={() => {
+                      setEditProfileOpen(false);
+                      checkAuthAndFetchData();
+                    }}
+                  />
+                )}
+              </DialogContent>
+            </Dialog>
           </>
         )}
       </div>
