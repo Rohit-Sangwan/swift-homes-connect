@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Phone } from 'lucide-react';
+import { Phone, Upload, Loader2 } from 'lucide-react';
 
 interface ProfileEditorProps {
   providerId: string;
@@ -29,6 +29,9 @@ const ProfileEditor: React.FC<ProfileEditorProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Extract username from name field (first part before space)
+  const username = name.split(' ')[0] || name;
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -39,9 +42,9 @@ const ProfileEditor: React.FC<ProfileEditorProps> = ({
       // Create a unique file name
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `profile_images/${providerId}/${fileName}`;
+      const filePath = `${providerId}/${fileName}`;
       
-      // Upload the file to Supabase storage
+      // Upload the file to Supabase storage using the profiles bucket
       const { error: uploadError } = await supabase.storage
         .from('profiles')
         .upload(filePath, file);
@@ -73,6 +76,37 @@ const ProfileEditor: React.FC<ProfileEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handlePhoneCall = () => {
+    if (phone) {
+      window.location.href = `tel:${phone}`;
+    } else {
+      toast({
+        title: "No phone number",
+        description: "Please add a phone number first.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '');
+    
+    // Format the phone number based on length
+    if (digits.length <= 3) {
+      return digits;
+    } else if (digits.length <= 6) {
+      return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    } else {
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formattedPhone = formatPhoneNumber(e.target.value);
+    setPhone(formattedPhone);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,6 +164,11 @@ const ProfileEditor: React.FC<ProfileEditorProps> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex flex-col items-center mb-4">
+        <div className="text-center mb-2">
+          <h3 className="text-lg font-medium">{username}</h3>
+          <p className="text-sm text-gray-500">Service Provider</p>
+        </div>
+        
         <Avatar className="w-24 h-24 mb-2">
           <AvatarImage 
             src={imageUrl || '/placeholder.svg'} 
@@ -149,8 +188,19 @@ const ProfileEditor: React.FC<ProfileEditorProps> = ({
             size="sm"
             disabled={isUploading}
             onClick={() => document.getElementById('profile-image-upload')?.click()}
+            className="flex items-center"
           >
-            {isUploading ? 'Uploading...' : 'Change Photo'}
+            {isUploading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4 mr-2" />
+                Change Photo
+              </>
+            )}
           </Button>
           <input
             id="profile-image-upload"
@@ -174,12 +224,24 @@ const ProfileEditor: React.FC<ProfileEditorProps> = ({
       
       <div className="space-y-2">
         <label htmlFor="phone" className="text-sm font-medium">Phone Number</label>
-        <Input
-          id="phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="Your phone number"
-        />
+        <div className="flex gap-2">
+          <Input
+            id="phone"
+            value={phone}
+            onChange={handlePhoneChange}
+            placeholder="Your phone number"
+            className="flex-1"
+          />
+          <Button 
+            type="button" 
+            size="icon"
+            variant="outline"
+            onClick={handlePhoneCall}
+            className="flex-none"
+          >
+            <Phone className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       
       <Button
