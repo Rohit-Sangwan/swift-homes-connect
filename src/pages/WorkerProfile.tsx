@@ -39,7 +39,7 @@ interface Review {
   rating: number;
   comment: string | null;
   created_at: string | null;
-  username?: string;
+  username: string;
 }
 
 const serviceCategories = {
@@ -114,9 +114,20 @@ const WorkerProfile = () => {
                     workerData.service_category.charAt(0).toUpperCase() + workerData.service_category.slice(1),
         });
         
-        // Format reviews data with dates
+        // Format reviews data with dates and usernames
         if (reviewsData) {
-          const formattedReviews = reviewsData.map(review => {
+          const formattedReviews = await Promise.all(reviewsData.map(async (review) => {
+            // Get user info to display username
+            const { data: userData } = await supabase.auth.admin.getUserById(review.user_id);
+            
+            // Use email username or first part of email as display name
+            let username = 'Anonymous User';
+            if (userData?.user?.email) {
+              username = userData.user.email.split('@')[0];
+              // Capitalize first letter
+              username = username.charAt(0).toUpperCase() + username.slice(1);
+            }
+            
             // Format the date
             const formattedDate = review.created_at ? 
               new Date(review.created_at).toLocaleDateString('en-US', { 
@@ -127,10 +138,10 @@ const WorkerProfile = () => {
               
             return {
               ...review,
-              username: "User", // In a real app, you'd fetch the user's name
+              username,
               created_at: formattedDate
             };
-          });
+          }));
           
           setReviews(formattedReviews);
         }
@@ -278,7 +289,7 @@ const WorkerProfile = () => {
               reviews.map(review => (
                 <div key={review.id} className="border rounded-lg p-3">
                   <div className="flex justify-between items-center mb-2">
-                    <div className="font-medium">{review.username || "User"}</div>
+                    <div className="font-medium">{review.username}</div>
                     <div className="text-xs text-gray-500">{review.created_at}</div>
                   </div>
                   <div className="flex items-center mb-2">

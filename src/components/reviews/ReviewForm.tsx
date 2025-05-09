@@ -18,11 +18,21 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ providerId, onReviewSubmitted }
   const [hoveredStar, setHoveredStar] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [username, setUsername] = useState<string>('');
 
   React.useEffect(() => {
     const checkAuthStatus = async () => {
       const { data } = await supabase.auth.getSession();
       setIsLoggedIn(!!data.session);
+
+      if (data.session) {
+        // Get user's email to display as username
+        const email = data.session.user.email;
+        if (email) {
+          const displayName = email.split('@')[0];
+          setUsername(displayName.charAt(0).toUpperCase() + displayName.slice(1));
+        }
+      }
     };
     
     checkAuthStatus();
@@ -117,6 +127,13 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ providerId, onReviewSubmitted }
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg p-4 shadow-sm border">
       <h3 className="text-lg font-medium mb-3">Write a Review</h3>
+      
+      {username && (
+        <div className="mb-3 text-sm">
+          <span className="text-gray-500">Posting as: </span>
+          <span className="font-medium">{username}</span>
+        </div>
+      )}
       
       {/* Star Rating */}
       <div className="flex items-center mb-3">
