@@ -32,7 +32,6 @@ const HomePage = () => {
     try {
       setLoading(true);
       
-      // Create a temporary admin client to bypass RLS for public viewing
       const { data, error } = await supabase
         .from('service_providers')
         .select('id, name, service_category, profile_image_url, city, experience')
@@ -41,27 +40,7 @@ const HomePage = () => {
         
       if (error) {
         console.error('Error fetching providers:', error);
-        // If RLS is blocking, try with service role (for public access)
-        console.log('Attempting to fetch with different approach...');
-        
-        // For now, let's try a different approach - fetch without auth
-        const { data: publicData, error: publicError } = await supabase
-          .from('service_providers')
-          .select('id, name, service_category, profile_image_url, city, experience')
-          .eq('status', 'approved')
-          .limit(3);
-          
-        if (publicError) {
-          console.error('Still error fetching providers:', publicError);
-          // Set empty array but don't show error to user
-          setFeaturedWorkers([]);
-        } else if (publicData) {
-          const providersWithUsername = publicData.map(provider => ({
-            ...provider,
-            username: provider.name.split(' ')[0].toLowerCase()
-          }));
-          setFeaturedWorkers(providersWithUsername);
-        }
+        setFeaturedWorkers([]);
       } else if (data) {
         // Add username to each provider
         const providersWithUsername = data.map(provider => ({
@@ -72,7 +51,6 @@ const HomePage = () => {
       }
     } catch (error) {
       console.error('Error in fetching providers:', error);
-      // Don't show error to user, just show empty state
       setFeaturedWorkers([]);
     } finally {
       setLoading(false);
@@ -86,7 +64,7 @@ const HomePage = () => {
         .from('service_categories')
         .select('*')
         .order('name', { ascending: true })
-        .limit(8); // Limit to 8 categories for the grid display
+        .limit(8);
         
       if (error) {
         console.error('Error fetching categories:', error);
@@ -94,7 +72,6 @@ const HomePage = () => {
       }
       
       if (data) {
-        // Map the data to include icons and colors
         const mappedCategories = data.map(category => ({
           ...category,
           icon: getCategoryIcon(category.slug),
@@ -110,13 +87,10 @@ const HomePage = () => {
     }
   };
   
-  // Helper to get category name from id
   const getCategoryName = (categoryId: string) => {
-    // This will be replaced by proper category lookup
     return categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
   };
   
-  // Helper to get category icon
   const getCategoryIcon = (slug: string) => {
     const iconMap: { [key: string]: string } = {
       plumbing: '🔧',
@@ -131,10 +105,9 @@ const HomePage = () => {
       flooring: '🧱',
     };
     
-    return iconMap[slug] || '🛠️'; // Default icon for unknown categories
+    return iconMap[slug] || '🛠️';
   };
   
-  // Helper to get category color
   const getCategoryColor = (slug: string) => {
     const colorMap: { [key: string]: string } = {
       plumbing: 'bg-blue-100',
@@ -149,7 +122,7 @@ const HomePage = () => {
       flooring: 'bg-amber-100',
     };
     
-    return colorMap[slug] || 'bg-gray-100'; // Default color for unknown categories
+    return colorMap[slug] || 'bg-gray-100';
   };
   
   return (
@@ -277,9 +250,9 @@ const HomePage = () => {
           <Button 
             variant="outline" 
             className="h-auto py-4 border-2 border-brand-orange text-brand-orange bg-orange-50 hover:bg-orange-100"
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate('/auth')}
           >
-            User Account
+            Sign In / Sign Up
           </Button>
         </div>
       </div>
