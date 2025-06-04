@@ -1,14 +1,15 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageContainer from '@/components/PageContainer';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import ServiceProviderTable from '@/components/admin/ServiceProviderTable';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import CategoryManager from '@/components/admin/CategoryManager';
+import SystemSettings from '@/components/admin/SystemSettings';
+import DatabaseManagement from '@/components/admin/DatabaseManagement';
+import UserManagement from '@/components/admin/UserManagement';
 import { Users, Settings, BarChart, Database, UserCog, FolderTree } from 'lucide-react';
 
 const AdminPage = () => {
@@ -156,10 +157,12 @@ const AdminPage = () => {
           onValueChange={setActiveTab} 
           className="mb-6"
         >
-          <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsList className="grid w-full grid-cols-5 mb-4">
             <TabsTrigger value="applications">Applications</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="system">System</TabsTrigger>
+            <TabsTrigger value="database">Database</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
           
           <TabsContent value="applications" className="animate-fade-in">
@@ -184,43 +187,16 @@ const AdminPage = () => {
             </Card>
           </TabsContent>
           
-          <TabsContent value="settings" className="animate-fade-in">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Admin Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium mb-2">System Configuration</h3>
-                  <p className="text-sm text-gray-500 mb-3">
-                    Configure system-wide settings and preferences
-                  </p>
-                  <Button variant="outline" className="w-full">
-                    <Settings size={16} className="mr-2" /> System Settings
-                  </Button>
-                </div>
-                
-                <div className="pt-2">
-                  <h3 className="text-sm font-medium mb-2">Database Management</h3>
-                  <p className="text-sm text-gray-500 mb-3">
-                    Perform database maintenance operations
-                  </p>
-                  <Button variant="outline" className="w-full">
-                    <Database size={16} className="mr-2" /> Database Options
-                  </Button>
-                </div>
-                
-                <div className="pt-2">
-                  <h3 className="text-sm font-medium mb-2">User Management</h3>
-                  <p className="text-sm text-gray-500 mb-3">
-                    Manage user accounts and permissions
-                  </p>
-                  <Button variant="outline" className="w-full">
-                    <UserCog size={16} className="mr-2" /> Manage Users
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="system" className="animate-fade-in">
+            <SystemSettings />
+          </TabsContent>
+          
+          <TabsContent value="database" className="animate-fade-in">
+            <DatabaseManagement />
+          </TabsContent>
+          
+          <TabsContent value="users" className="animate-fade-in">
+            <UserManagement />
           </TabsContent>
         </Tabs>
       </div>
