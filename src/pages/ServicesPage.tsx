@@ -82,7 +82,7 @@ const ServicesPage = () => {
       flooring: '🧱',
     };
     
-    return iconMap[slug] || '🛠️'; // Default icon for unknown categories
+    return iconMap[slug] || '🛠️';
   };
   
   // Helper to get category color
@@ -100,7 +100,7 @@ const ServicesPage = () => {
       flooring: 'bg-rose-100',
     };
     
-    return colorMap[slug] || 'bg-gray-100'; // Default color for unknown categories
+    return colorMap[slug] || 'bg-gray-100';
   };
   
   const filteredCategories = categories.filter(category => 
@@ -135,7 +135,7 @@ const ServicesPage = () => {
             {filteredCategories.map(category => (
               <div
                 key={category.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center cursor-pointer animate-fade-in"
+                className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center cursor-pointer animate-fade-in hover:shadow-md transition-shadow"
                 onClick={() => navigate(`/services/${category.slug}`)}
               >
                 <div className={`w-12 h-12 ${category.color} rounded-full flex items-center justify-center mr-4 text-xl`}>

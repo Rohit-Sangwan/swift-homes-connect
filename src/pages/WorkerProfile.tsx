@@ -30,6 +30,7 @@ interface WorkerData {
   profile_image_url: string | null;
   phone: string;
   experience: string;
+  username?: string;
 }
 
 interface Review {
@@ -61,10 +62,29 @@ const WorkerProfile = () => {
   const [worker, setWorker] = useState<WorkerData | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   useEffect(() => {
+    checkAuth();
     fetchWorkerData();
   }, [workerId]);
+  
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setIsAuthenticated(!!session);
+  };
+
+  const handleCallClick = () => {
+    if (!isAuthenticated) {
+      // Redirect to auth page if not logged in
+      navigate('/auth');
+      return;
+    }
+
+    if (worker?.phone) {
+      window.location.href = `tel:${worker.phone}`;
+    }
+  };
   
   const fetchWorkerData = async () => {
     try {
@@ -75,24 +95,47 @@ const WorkerProfile = () => {
         return;
       }
       
-      // Fetch worker data - no authentication required
-      const { data: workerData, error: workerError } = await supabase
-        .from('service_providers')
-        .select('*')
-        .eq('id', workerId)
-        .eq('status', 'approved')
-        .single();
+      // First try to find by username
+      let workerData;
+      let workerError;
+      
+      // Check if workerId looks like a username (contains letters, not just UUID)
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workerId)) {
+        // Try to find by username (first part of name)
+        const { data, error } = await supabase
+          .from('service_providers')
+          .select('*')
+          .eq('status', 'approved')
+          .ilike('name', `${workerId}%`);
+          
+        if (!error && data && data.length > 0) {
+          workerData = data[0];
+        } else {
+          workerError = error;
+        }
+      } else {
+        // Find by ID
+        const { data, error } = await supabase
+          .from('service_providers')
+          .select('*')
+          .eq('id', workerId)
+          .eq('status', 'approved')
+          .single();
+          
+        workerData = data;
+        workerError = error;
+      }
         
       if (workerError) {
         console.error('Error fetching worker data:', workerError);
         return;
       }
       
-      // Fetch reviews for this worker - no authentication required
+      // Fetch reviews for this worker
       const { data: reviewsData, error: reviewsError } = await supabase
         .from('reviews')
         .select('*')
-        .eq('provider_id', workerId);
+        .eq('provider_id', workerData.id);
         
       if (reviewsError) {
         console.error('Error fetching reviews:', reviewsError);
@@ -106,8 +149,10 @@ const WorkerProfile = () => {
       
       // Set the worker data with additional information
       if (workerData) {
+        const username = workerData.name.split(' ')[0].toLowerCase();
         setWorker({
           ...workerData,
+          username,
           rating: parseFloat(avgRating.toFixed(1)),
           reviews: reviewsData?.length || 0,
           profession: serviceCategories[workerData.service_category as keyof typeof serviceCategories] || 
@@ -116,17 +161,9 @@ const WorkerProfile = () => {
         
         // Format reviews data with dates and usernames
         if (reviewsData) {
-          const formattedReviews = await Promise.all(reviewsData.map(async (review) => {
-            // Get user info to display username
-            const { data: userData } = await supabase.auth.admin.getUserById(review.user_id);
-            
-            // Use email username or first part of email as display name
-            let username = 'Anonymous User';
-            if (userData?.user?.email) {
-              username = userData.user.email.split('@')[0];
-              // Capitalize first letter
-              username = username.charAt(0).toUpperCase() + username.slice(1);
-            }
+          const formattedReviews = reviewsData.map((review) => {
+            // Create a simple username from user_id (first 8 characters)
+            const username = `User_${review.user_id.substring(0, 8)}`;
             
             // Format the date
             const formattedDate = review.created_at ? 
@@ -141,7 +178,7 @@ const WorkerProfile = () => {
               username,
               created_at: formattedDate
             };
-          }));
+          });
           
           setReviews(formattedReviews);
         }
@@ -219,6 +256,7 @@ const WorkerProfile = () => {
         {/* Worker info */}
         <div className="text-center mb-6">
           <h1 className="text-xl font-bold">{worker.name}</h1>
+          <p className="text-gray-500">@{worker.username}</p>
           <p className="text-gray-500">{worker.profession}</p>
           <div className="flex items-center justify-center mt-1">
             <Star className="text-yellow-500 fill-yellow-500 mr-1" size={16} />
@@ -233,9 +271,18 @@ const WorkerProfile = () => {
         
         {/* Contact button */}
         <div className="mb-6">
-          <Button className="w-full gap-2">
-            <Phone size={16} /> Call Now
+          <Button 
+            className="w-full gap-2"
+            onClick={handleCallClick}
+          >
+            <Phone size={16} /> 
+            {isAuthenticated ? 'Call Now' : 'Login to Call'}
           </Button>
+          {!isAuthenticated && (
+            <p className="text-xs text-gray-500 text-center mt-2">
+              Please login to make calls
+            </p>
+          )}
         </div>
         
         {/* Location info */}
@@ -281,7 +328,21 @@ const WorkerProfile = () => {
           </TabsContent>
           
           <TabsContent value="reviews" className="space-y-4">
-            <ReviewForm providerId={worker.id} onReviewSubmitted={fetchWorkerData} />
+            {isAuthenticated ? (
+              <ReviewForm providerId={worker.id} onReviewSubmitted={fetchWorkerData} />
+            ) : (
+              <div className="text-center py-4 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">Please login to leave a review</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2"
+                  onClick={() => navigate('/auth')}
+                >
+                  Login
+                </Button>
+              </div>
+            )}
             
             <h3 className="font-medium mt-6 mb-2">Customer Reviews</h3>
             

@@ -39,7 +39,12 @@ const HomePage = () => {
       if (error) {
         console.error('Error fetching providers:', error);
       } else if (data) {
-        setFeaturedWorkers(data);
+        // Add username to each provider
+        const providersWithUsername = data.map(provider => ({
+          ...provider,
+          username: provider.name.split(' ')[0].toLowerCase()
+        }));
+        setFeaturedWorkers(providersWithUsername);
       }
     } catch (error) {
       console.error('Error in fetching providers:', error);
@@ -179,7 +184,7 @@ const HomePage = () => {
               <div 
                 key={worker.id} 
                 className="bg-white rounded-xl p-4 flex items-center card-shadow animate-fade-in"
-                onClick={() => navigate(`/workers/${worker.id}`)}
+                onClick={() => navigate(`/workers/${worker.username}`)}
               >
                 <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden mr-4">
                   {worker.profile_image_url ? (
@@ -201,6 +206,7 @@ const HomePage = () => {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-medium">{worker.name}</h3>
+                  <p className="text-sm text-gray-500">@{worker.username}</p>
                   <p className="text-sm text-gray-500">{getCategoryName(worker.service_category)}</p>
                   <div className="flex items-center mt-1">
                     <MapPin size={12} className="text-gray-500 mr-1" />
