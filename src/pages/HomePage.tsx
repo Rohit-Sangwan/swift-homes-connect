@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowRight, MapPin } from 'lucide-react';
@@ -13,6 +14,7 @@ interface Provider {
   profile_image_url: string | null;
   city: string;
   experience: string;
+  username: string; // Added username property
 }
 
 const HomePage = () => {
